@@ -63,13 +63,60 @@ function streamLocalFile(videoFileName, req, res) {
   }
 }
 
+function sendLocalFileHead(videoFileName, res) {
+  const absolutePath = path.resolve(__dirname, '../../../../vdo', videoFileName);
+
+  if (!fs.existsSync(absolutePath)) {
+    res.writeHead(404, {
+      'Content-Type': 'application/json',
+      'X-MFU-Stream-Mode': 'missing'
+    });
+    return res.end();
+  }
+
+  const stat = fs.statSync(absolutePath);
+  res.writeHead(200, {
+    'Content-Length': stat.size,
+    'Content-Type': 'video/mp4',
+    'Accept-Ranges': 'bytes',
+    'Cache-Control': 'no-cache, no-store, must-revalidate',
+    'Pragma': 'no-cache',
+    'X-MFU-Stream-Mode': 'mp4'
+  });
+  return res.end();
+}
+
 function createProxyStreamHandler(pythonEndpoint, videoFileName) {
   return function (req, res) {
     const pythonUrl = `http://127.0.0.1:5000/${pythonEndpoint}`;
 
+    if (req.method === 'HEAD') {
+      const headReq = http.request(pythonUrl, { method: 'HEAD', timeout: 1000 }, (proxyRes) => {
+        const headers = Object.assign({}, proxyRes.headers, {
+          'X-MFU-Stream-Mode': 'mjpeg'
+        });
+        res.writeHead(proxyRes.statusCode, headers);
+        res.end();
+      });
+
+      headReq.on('timeout', () => {
+        headReq.destroy();
+      });
+
+      headReq.on('error', () => {
+        sendLocalFileHead(videoFileName, res);
+      });
+
+      headReq.end();
+      return;
+    }
+
     const proxyReq = http.get(pythonUrl, (proxyRes) => {
       // Pipe headers and payload from AI service MJPEG
-      res.writeHead(proxyRes.statusCode, proxyRes.headers);
+      const headers = Object.assign({}, proxyRes.headers, {
+        'X-MFU-Stream-Mode': 'mjpeg'
+      });
+      res.writeHead(proxyRes.statusCode, headers);
       proxyRes.pipe(res);
     });
 

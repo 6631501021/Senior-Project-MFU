@@ -1,0 +1,7 @@
+# 1. Clone โปรเจค
+git clone <url>
+cd Senior-Project-MFU
+
+# 2. ติดตั้ง dependencies (แค่อันนี้!)
+cd backend-node && npm install && pip install -r requirements.txt && cd ..
+cd frontend-vue && npm install && cd ..

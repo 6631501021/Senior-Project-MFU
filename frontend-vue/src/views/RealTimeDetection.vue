@@ -25,8 +25,8 @@
         </div>
         <div class="mfu-module-preview">
           <div class="mfu-module-preview-meta">
-            <span class="mfu-live-dot"></span>
-            <span class="mfu-live-text">LIVE</span>
+            <span class="mfu-live-dot" :class="{ 'live-dot--connecting': mod.isLoading }"></span>
+            <span class="mfu-live-text">{{ mod.isLoading ? 'CONNECTING' : 'LIVE' }}</span>
             <span class="mfu-cam-id text-truncate">// {{ mod.cameraId }}</span>
           </div>
           <div class="mfu-module-preview-stats">
@@ -37,17 +37,15 @@
             </button>
           </div>
           <div class="mfu-module-screen">
-            <video
-              v-if="mod.streamSrc && isVideo(mod.streamSrc)"
-              :src="mod.streamSrc"
-              autoplay
-              loop
-              muted
-              playsinline
+            <img 
+              v-if="mod.streamSrc" 
+              :src="mod.streamSrc" 
+              :alt="mod.name" 
               class="mfu-stream-img"
-              style="object-fit: cover;"
-            ></video>
-            <img v-else-if="mod.streamSrc" :src="mod.streamSrc" :alt="mod.name" class="mfu-stream-img" />
+              :key="mod.id + '-' + mod.streamRefreshTrigger"
+              @load="onStreamLoad(mod)"
+              @error="onStreamError(mod)"
+            />
             <div v-else class="mfu-module-screen-text">CAMERA SIGNAL ACTIVE</div>
           </div>
         </div>
@@ -70,7 +68,7 @@
 export default {
   name: 'RealTimeDetection',
   data() {
-    var baseUrl = process.env.VUE_APP_API_BASE_URL || ('http://' + (window.location.hostname || '127.0.0.1') + ':8097')
+    var baseUrl = this.getApiBaseUrl()
     return {
       searchQuery: '',
       backendBaseUrl: baseUrl,
@@ -83,7 +81,9 @@ export default {
           cameraId: 'CAM_01_HELMET',
           fps: '25.0',
           latency: '14',
-          streamSrc: baseUrl + '/video_helmet'
+          streamSrc: this.buildStreamUrl(baseUrl, '/video_helmet'),
+          isLoading: true,
+          streamRefreshTrigger: 0
         },
         {
           id: 2,
@@ -93,7 +93,9 @@ export default {
           cameraId: 'CAM_02_MOTO',
           fps: '25.0',
           latency: '16',
-          streamSrc: baseUrl + '/video_moto'
+          streamSrc: this.buildStreamUrl(baseUrl, '/video_moto'),
+          isLoading: true,
+          streamRefreshTrigger: 0
         },
         {
           id: 3,
@@ -103,10 +105,13 @@ export default {
           cameraId: 'CAM_03_PLATE',
           fps: '25.0',
           latency: '22',
-          streamSrc: baseUrl + '/video_plate'
+          streamSrc: this.buildStreamUrl(baseUrl, '/video_plate'),
+          isLoading: true,
+          streamRefreshTrigger: 0
         }
       ],
-      nextId: 4
+      nextId: 4,
+      streamReconnectIntervals: {}
     }
   },
   computed: {
@@ -120,7 +125,44 @@ export default {
     }
   },
   methods: {
+    getApiBaseUrl() {
+      var configuredUrl = process.env.VUE_APP_API_BASE_URL
+      if (configuredUrl && configuredUrl !== '/') {
+        return configuredUrl.replace(/\/+$/, '')
+      }
+      if (configuredUrl === '/') return ''
+      if (typeof window !== 'undefined' && window.location && window.location.hostname) {
+        return 'http://' + window.location.hostname + ':8097'
+      }
+      return 'http://127.0.0.1:8097'
+    },
+    buildStreamUrl(baseUrl, path) {
+      return (baseUrl || '') + path
+    },
+    onStreamLoad(module) {
+      module.isLoading = false
+      // Clear any existing reconnect interval
+      if (this.streamReconnectIntervals[module.id]) {
+        clearInterval(this.streamReconnectIntervals[module.id])
+        delete this.streamReconnectIntervals[module.id]
+      }
+    },
+    onStreamError(module) {
+      module.isLoading = true
+      // Set up automatic reconnection
+      if (!this.streamReconnectIntervals[module.id]) {
+        this.streamReconnectIntervals[module.id] = setInterval(() => {
+          // Trigger re-render by updating streamRefreshTrigger
+          module.streamRefreshTrigger++
+        }, 3000)
+      }
+    },
     removeModule(id) {
+      // Clear reconnect interval if exists
+      if (this.streamReconnectIntervals[id]) {
+        clearInterval(this.streamReconnectIntervals[id])
+        delete this.streamReconnectIntervals[id]
+      }
       this.modules = this.modules.filter(m => m.id !== id)
     },
     addModule() {
@@ -133,20 +175,15 @@ export default {
         cameraId: `CAM_0${newId}_NEW`,
         fps: '0.0',
         latency: '--',
-        streamSrc: ''
+        streamSrc: '',
+        isLoading: false,
+        streamRefreshTrigger: 0
       })
-    },
-    isVideo(src) {
-      if (!src) return false
-      // Only treat actual direct static .mp4 files as video tags.
-      // MJPEG streams (e.g. routes containing '/video_') must render inside <img> tags.
-      return src.includes('.mp4') && !src.includes('/video_')
-    },
-    getActiveBoxes() {
-      // The Python AI service draws beautiful, accurate bounding boxes directly on the frames via OpenCV.
-      // We return an empty array here to avoid double-drawing/overlaying simulated boxes.
-      return []
     }
+  },
+  beforeDestroy() {
+    // Clean up all reconnect intervals
+    Object.values(this.streamReconnectIntervals).forEach(interval => clearInterval(interval))
   }
 }
 </script>
@@ -277,9 +314,19 @@ export default {
   animation: livePulse 1.5s ease-in-out infinite;
 }
 
+.mfu-live-dot.live-dot--connecting {
+  background: #f59e0b;
+  animation: livePulseConnecting 1s ease-in-out infinite;
+}
+
 @keyframes livePulse {
   0%, 100% { opacity: 1; }
   50% { opacity: 0.4; }
+}
+
+@keyframes livePulseConnecting {
+  0%, 100% { opacity: 0.5; box-shadow: 0 0 0 0 rgba(245, 158, 11, 0.7); }
+  50% { opacity: 1; box-shadow: 0 0 0 4px rgba(245, 158, 11, 0); }
 }
 
 .mfu-live-text {
