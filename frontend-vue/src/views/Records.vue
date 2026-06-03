@@ -1,12 +1,12 @@
 <template>
   <div class="mfu-page">
     <!-- Breadcrumb -->
-    <div class="mfu-breadcrumb">RECORDS</div>
+    <div class="mfu-breadcrumb">{{ isAdmin ? 'RECORDS' : 'YOUR VIOLATION' }}</div>
 
     <!-- Page Header -->
     <div class="mfu-page-header mb-4">
-      <h1 class="mfu-page-title">Detection Records</h1>
-      <p class="mfu-page-subtitle">Review historical security data and archived violation detections across the campus ecosystem.</p>
+      <h1 class="mfu-page-title">{{ isAdmin ? 'Detection Records' : 'YOUR VIOLATION' }}</h1>
+      <p class="mfu-page-subtitle">{{ isAdmin ? 'Review historical security data and archived violation detections across the campus ecosystem.' : 'View and track your motorcycle helmet detection violations on campus.' }}</p>
     </div>
 
     <!-- Filter Card -->
@@ -32,6 +32,15 @@
               <option value="main_gate">Main Gate</option>
               <option value="dormitory">Dormitory Gate</option>
               <option value="medical">Medical Center Gate</option>
+            </select>
+          </div>
+          <div class="mfu-filter-group">
+            <label class="mfu-filter-label">ROW</label>
+            <select class="mfu-filter-select" v-model="perPage" @change="applyFilter">
+              <option :value="5">5 (default)</option>
+              <option :value="10">10</option>
+              <option :value="20">20</option>
+              <option :value="25">25</option>
             </select>
           </div>
           <div class="mfu-filter-actions">
@@ -108,9 +117,11 @@
 
 <script>
 import api from '@/service/api'
+import securityAccess from '@/projects/mixins/securityAccess'
 
 export default {
   name: 'Records',
+  mixins: [securityAccess],
   data() {
     return {
       filters: {
@@ -121,12 +132,15 @@ export default {
       totalRecords: 0,
       noHelmetCount: 0,
       currentPage: 1,
-      perPage: 25,
+      perPage: 5,
       records: [],
       loading: false
     }
   },
   computed: {
+    isAdmin() {
+      return this.canViewPath('/newsystem/registry')
+    },
     totalPages() {
       return Math.ceil(this.totalRecords / this.perPage) || 1
     },
@@ -193,8 +207,8 @@ export default {
       this.loading = false
     },
     applyMockData() {
-      this.totalRecords = 14282
-      this.noHelmetCount = 843
+      this.totalRecords = 4
+      this.noHelmetCount = 4
       this.records = [
         { _id: 'mock-1', timestamp: '2023-11-24T14:32:01Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-01' },
         { _id: 'mock-2', timestamp: '2023-11-24T14:22:40Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-02' },

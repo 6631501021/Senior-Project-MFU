@@ -133,8 +133,27 @@ exports.onCheckAuthorization = async function (request, response, next) {
             return response.status(401).json(missingTokenRes);
         }
 
-        const current = await iamAdminClient.resolveCurrentAccount(request);
-        const account = current && current.account ? current.account : null;
+        let localAccount;
+        if (accessToken) {
+            localAccount = await Account.onQuery({ 'control.device.xAccessToken': accessToken });
+        }
+
+        let account;
+        let currentSession = null;
+
+        if (localAccount) {
+            account = localAccount;
+            currentSession = localAccount.control && Array.isArray(localAccount.control.device)
+                ? localAccount.control.device.find(function (d) { return d && String(d.xAccessToken) === accessToken; })
+                : null;
+        } else {
+            const current = await iamAdminClient.resolveCurrentAccount(request);
+            account = current && current.account ? current.account : null;
+            currentSession = current && current.payload && current.payload.data && current.payload.data.authSession
+                ? current.payload.data.authSession
+                : null;
+        }
+
         if (!account || !account._id) {
             var unauthorizedRes = await resMsg.onMessage_Response(0,40100);
             return response.status(401).json(unauthorizedRes);
@@ -145,9 +164,7 @@ exports.onCheckAuthorization = async function (request, response, next) {
         }
         request.body.accounts = String(account._id);
         request.authAccount = account;
-        request.authSession = current && current.payload && current.payload.data && current.payload.data.authSession
-            ? current.payload.data.authSession
-            : null;
+        request.authSession = currentSession;
         return next();
 
     } catch (err) {
@@ -1511,5 +1528,199 @@ exports.onAccountRevokeTrustedDevice = async function (request, response, next) 
     } catch (err) {
         var fail = await resMsg.onMessage_Response(0,50000);
         return response.status(500).json(fail);
+    }
+};
+
+exports.onSignUp = async function (request, response, next) {
+    try {
+        const username = request.body && request.body.username ? String(request.body.username).trim() : '';
+        const email = request.body && request.body.email ? String(request.body.email).trim().toLowerCase() : '';
+        const password = request.body && request.body.password ? String(request.body.password).trim() : '';
+        const confirmPassword = request.body && request.body.confirmPassword ? String(request.body.confirmPassword).trim() : '';
+        const licensePlate = request.body && request.body.licensePlate ? String(request.body.licensePlate).trim() : '';
+
+        if (!username || !email || !password || !confirmPassword || !licensePlate) {
+            return response.status(400).json({
+                status: false,
+                message: 'All fields are required'
+            });
+        }
+
+        if (password !== confirmPassword) {
+            return response.status(400).json({
+                status: false,
+                message: 'Passwords do not match'
+            });
+        }
+
+        const emailRegex = /^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$/;
+        if (!emailRegex.test(email)) {
+            return response.status(400).json({
+                status: false,
+                message: 'Invalid email format'
+            });
+        }
+
+        const existed = await Account.onQuery({ email: email });
+        if (existed) {
+            return response.status(400).json({
+                status: false,
+                message: 'Email already registered'
+            });
+        }
+
+        const masterStatus = await ensureAccountStatusMasterData();
+        const activeStatus = masterStatus && masterStatus.statuses ? masterStatus.statuses.ACTIVE : null;
+
+        const createPayload = {
+            dateTime: new Date(),
+            code: 'REG-' + Utils.randomString(10).toUpperCase(),
+            email: email,
+            username: username,
+            password: password,
+            licensePlate: licensePlate,
+            authen: [
+                {
+                    username: email,
+                    password: password,
+                    email: email,
+                    oAtuhToken: null
+                }
+            ],
+            userinfo: {
+                firstName: toLangArray(username, 'en'),
+                lastName: [],
+                image: null,
+                licensePlate: licensePlate
+            },
+            control: {
+                sso: false,
+                limit: 4,
+                trustedDevices: [],
+                device: []
+            },
+            verification: [],
+            status: activeStatus ? toObjectId(activeStatus._id) : null
+        };
+
+        const newDoc = await Account.onCreate(createPayload);
+        let resData = await resMsg.onMessage_Response(0, 20000);
+        if (resData instanceof Error || !resData || typeof resData.status === 'undefined') {
+            resData = { status: true, code: 20000, message: 'Success' };
+        }
+        resData.data = newDoc;
+        return response.status(200).json(resData);
+    } catch (err) {
+        console.error('SignUp error:', err);
+        let resData = await resMsg.onMessage_Response(0, 50000);
+        if (resData instanceof Error || !resData || typeof resData.status === 'undefined') {
+            resData = { status: false, code: 50000, message: 'Internal Server Error' };
+        }
+        return response.status(500).json(resData);
+    }
+};
+
+exports.onLocalSignIn = async function (request, response, next) {
+    try {
+        const email = request.body && request.body.email ? String(request.body.email).trim().toLowerCase() : '';
+        const password = request.body && request.body.password ? String(request.body.password).trim() : '';
+
+        if (!email || !password) {
+            return response.status(400).json({
+                status: false,
+                message: 'Email and password are required'
+            });
+        }
+
+        const query = {
+            email: email,
+            $or: [
+                { 'authen.password': password },
+                { password: password }
+            ]
+        };
+        let isDoc = await Account.onQuery(query);
+        if (!isDoc) {
+            return response.status(401).json({
+                status: false,
+                message: 'Invalid email or password'
+            });
+        }
+
+        const resolvedAccount = await resolveAccountStatus(Account, isDoc);
+        isDoc = resolvedAccount.account || isDoc;
+        if (!isSigninAllowed(resolvedAccount.status)) {
+            let denied = await resMsg.onMessage_Response(0, 40100);
+            if (denied instanceof Error || !denied || typeof denied.status === 'undefined') {
+                denied = { status: false, code: 40100, message: 'Sign-in denied by account status' };
+            }
+            denied.data = { status: resolvedAccount.status };
+            return response.status(401).json(denied);
+        }
+
+        const clientIp = normalizeIp(request);
+        const userAgent = String(request.get('User-Agent') || '');
+        const deviceId = normalizeDeviceId(request.body && request.body.deviceId) || 'local-device';
+        const networkKey = normalizeNetworkKey(clientIp);
+        const fingerprint = createFingerprint(deviceId, userAgent);
+
+        const sessionQuery = { _id: new mongo.ObjectId(isDoc._id) };
+
+        if (isDoc.control && isDoc.control.limit <= isDoc.control.device.length) {
+            await Account.onUpdate(sessionQuery, {
+                $pull: { "control.device": isDoc.control.device[0] }
+            });
+        }
+
+        const token = await Utils.createTokens();
+        const devices = {
+            version: "1",
+            ip: clientIp,
+            device: userAgent,
+            xAccessToken: token,
+            expired_key: new moment().unix() + Config.tokenExpired,
+            accounts: isDoc._id,
+            deviceId: deviceId,
+            fingerprint: fingerprint,
+            networkKey: networkKey,
+            rememberDeviceRequested: false
+        };
+
+        await Account.onUpdate(sessionQuery, {
+            $push: { "control.device": devices }
+        });
+
+        delete devices.ip;
+        delete devices.device;
+
+        let resData = await resMsg.onMessage_Response(0, 20000);
+        if (resData instanceof Error || !resData || typeof resData.status === 'undefined') {
+            resData = { status: true, code: 20000, message: 'Success' };
+        }
+        devices.require2FA = false;
+        devices.trustedDeviceMatched = true;
+        resData.data = devices;
+
+        await writeAudit({
+            module: 'auth',
+            action: 'signin-local',
+            actorType: 'user',
+            actorId: String(isDoc._id),
+            resourceType: 'Information_Accounts',
+            resourceId: String(isDoc._id),
+            meta: {
+                deviceId: deviceId,
+                networkKey: networkKey
+            }
+        }, request);
+
+        return response.status(200).json(resData);
+    } catch (err) {
+        console.error('Local SignIn error:', err);
+        let resData = await resMsg.onMessage_Response(0, 50000);
+        if (resData instanceof Error || !resData || typeof resData.status === 'undefined') {
+            resData = { status: false, code: 50000, message: 'Internal Server Error' };
+        }
+        return response.status(500).json(resData);
     }
 };
