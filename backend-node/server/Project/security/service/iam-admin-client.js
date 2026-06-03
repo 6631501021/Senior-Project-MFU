@@ -687,6 +687,20 @@ async function forwardScopedSignin(request, response) {
 async function forwardMyPermissions(request, response) {
   try {
     const newSystemAccount = await loadCurrentNewSystemAccount(request);
+    if (newSystemAccount && newSystemAccount.control && newSystemAccount.control.sso === false) {
+      const accountAccess = require('./account-access');
+      const localPerms = await accountAccess.getEffectivePermissions(newSystemAccount._id);
+      return response.status(200).json({
+        status: true,
+        data: {
+          accountId: String(newSystemAccount._id),
+          assignments: localPerms.assignments || [],
+          permissions: localPerms.permissions || [],
+          matrix: localPerms.matrix || {},
+          allowed: true
+        }
+      });
+    }
     const email = newSystemAccount && newSystemAccount.email ? newSystemAccount.email : '';
     if (!email) {
       return response.status(200).json({

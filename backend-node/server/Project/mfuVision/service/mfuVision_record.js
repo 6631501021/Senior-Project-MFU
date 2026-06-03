@@ -62,7 +62,7 @@ async function list(query) {
 /**
  * Get aggregated statistics.
  */
-async function stats() {
+async function stats(plateNumber) {
   const now = new Date();
 
   // Start of today (local midnight approximation in UTC)
@@ -72,36 +72,50 @@ async function stats() {
   // One hour ago
   const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
 
-  const violationsToday = await MfuVisionRecord.countDocuments({
+  // Build optional plate number filter
+  const filter = {};
+  if (plateNumber) {
+    filter.plate_number = { $regex: plateNumber, $options: 'i' };
+  }
+
+  const violationsToday = await MfuVisionRecord.countDocuments(Object.assign({
     timestamp: { $gte: startOfToday }
-  });
+  }, filter));
 
-  const violationsLastHour = await MfuVisionRecord.countDocuments({
+  const violationsLastHour = await MfuVisionRecord.countDocuments(Object.assign({
     timestamp: { $gte: oneHourAgo }
-  });
+  }, filter));
 
-  const totalRecords = await MfuVisionRecord.countDocuments({});
+  const totalRecords = await MfuVisionRecord.countDocuments(filter);
 
   // Active cameras = distinct camera_id values with records in last 24h
   const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const activeCameras = await MfuVisionRecord.distinct('camera_id', {
+  const activeCameras = await MfuVisionRecord.distinct('camera_id', Object.assign({
     timestamp: { $gte: oneDayAgo }
-  });
+  }, filter));
 
   // Detection rate: percentage of no_helmet vs total in last 7 days
   const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const totalWeek = await MfuVisionRecord.countDocuments({
+  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+
+  const totalWeek = await MfuVisionRecord.countDocuments(Object.assign({
     timestamp: { $gte: sevenDaysAgo }
-  });
-  const helmetsWeek = await MfuVisionRecord.countDocuments({
+  }, filter));
+  const helmetsWeek = await MfuVisionRecord.countDocuments(Object.assign({
     timestamp: { $gte: sevenDaysAgo },
     violation_type: 'no_helmet'
-  });
+  }, filter));
   const detectionRate = totalWeek > 0 ? Math.round((helmetsWeek / totalWeek) * 100) : 0;
+
+  // New weekly and monthly total violations counts
+  const violationsWeek = totalWeek;
+  const violationsMonth = await MfuVisionRecord.countDocuments(Object.assign({
+    timestamp: { $gte: thirtyDaysAgo }
+  }, filter));
 
   // Hourly trend for last 24 hours
   const hourlyTrend = await MfuVisionRecord.aggregate([
-    { $match: { timestamp: { $gte: oneDayAgo } } },
+    { $match: Object.assign({ timestamp: { $gte: oneDayAgo } }, filter) },
     {
       $group: {
         _id: { $hour: '$timestamp' },
@@ -113,7 +127,7 @@ async function stats() {
 
   // Daily trend for last 7 days
   const dailyTrend = await MfuVisionRecord.aggregate([
-    { $match: { timestamp: { $gte: sevenDaysAgo } } },
+    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
     {
       $group: {
         _id: { $dayOfWeek: '$timestamp' },
@@ -125,7 +139,7 @@ async function stats() {
 
   // Violation type breakdown
   const typeBreakdown = await MfuVisionRecord.aggregate([
-    { $match: { timestamp: { $gte: sevenDaysAgo } } },
+    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
     {
       $group: {
         _id: '$violation_type',
@@ -137,7 +151,7 @@ async function stats() {
 
   // Location breakdown (cross-gate analysis)
   const locationBreakdown = await MfuVisionRecord.aggregate([
-    { $match: { timestamp: { $gte: sevenDaysAgo } } },
+    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
     {
       $group: {
         _id: '$location',
@@ -154,6 +168,8 @@ async function stats() {
   return {
     violations_today: violationsToday,
     violations_last_hour: violationsLastHour,
+    violations_week: violationsWeek,
+    violations_month: violationsMonth,
     total_records: totalRecords,
     active_cameras: activeCameras.length,
     detection_rate: detectionRate,

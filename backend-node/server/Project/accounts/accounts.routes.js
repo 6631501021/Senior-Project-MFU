@@ -26,16 +26,27 @@ const canActionLifecycle = authorization.requirePermission('/accounts/lifecycle'
   targetAccountId: (request) => request.params && request.params.id ? String(request.params.id) : ''
 });
 
-router.post("/signin", function (request, response) {
+router.post("/signin", async function (request, response, next) {
+  if (request.body && request.body.email && request.body.password) {
+    return Account.onLocalSignIn(request, response, next);
+  }
   return iamAdminClient.forwardScopedSignin(request, response);
 });
-router.get("/auth/me", Account.onCheckAuthorization, function (request, response) {
+router.post("/register", Account.onSignUp);
+
+router.get("/auth/me", Account.onCheckAuthorization, function (request, response, next) {
+  if (request.authAccount && !request.authAccount.control.sso) {
+    return Account.onMe(request, response, next);
+  }
   return iamAdminClient.forwardUserRequest(request, response, {
     method: 'get',
     path: '/auth/me'
   });
 });
-router.get("/auth/sessions", Account.onCheckAuthorization, function (request, response) {
+router.get("/auth/sessions", Account.onCheckAuthorization, function (request, response, next) {
+  if (request.authAccount && !request.authAccount.control.sso) {
+    return Account.onSessions(request, response, next);
+  }
   return iamAdminClient.forwardUserRequest(request, response, {
     method: 'get',
     path: '/auth/sessions'
@@ -47,7 +58,10 @@ router.delete("/auth/sessions/:id", Account.onCheckAuthorization, function (requ
     path: `/auth/sessions/${String(request.params && request.params.id ? request.params.id : '')}`
   });
 });
-router.post("/auth/logout", Account.onCheckAuthorization, function (request, response) {
+router.post("/auth/logout", Account.onCheckAuthorization, function (request, response, next) {
+  if (request.authAccount && !request.authAccount.control.sso) {
+    return Account.onLogout(request, response, next);
+  }
   return iamAdminClient.forwardUserRequest(request, response, {
     method: 'post',
     path: '/auth/logout'
