@@ -76,13 +76,21 @@ Known compatibility note:
 
 ### FR-NEW-001 Authentication And Session
 
-Users can sign in, bootstrap session through `/auth/me`, manage sessions, use 2FA, and manage trusted devices.
+Users can sign in locally or via Google, sign up locally, bootstrap session through `/auth/me`, manage sessions, use 2FA, and manage trusted devices.
+
+#### Local Registration and Authentication
+- **Local Sign Up**: Accessible publicly at `/pages/register` (frontend) and `/api/v1/register` (backend). Captures `username`, `email`, `password`, `confirmPassword`, and `licensePlate` (stored in `userinfo.licensePlate` in the `Information_Accounts` collection).
+- **Local Sign In**: Handles local email/password credentials via `POST /api/v1/signin` (intercepted to verify locally if the user is registered locally), provisioning a local token stored in `control.device`.
+- **Session Interceptors**: Requests with a local session token to `/auth/me`, `/auth/sessions`, and `/auth/logout` are processed locally using the database, bypassing the external IAM/B2C IAM servers.
 
 Source:
 
 - `backend-node/server/Project/accounts/accounts.routes.js`
+- `backend-node/server/Project/accounts/service/account.js`
+- `backend-node/server/Project/accounts/models/account.model.js`
 - `frontend-vue/src/store/modules/Authen/index.js`
 - `frontend-vue/src/views/pages/Login.vue`
+- `frontend-vue/src/views/pages/Register.vue`
 
 ### FR-NEW-002 Account Directory And Lifecycle
 

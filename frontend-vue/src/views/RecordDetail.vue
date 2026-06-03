@@ -2,9 +2,9 @@
   <div class="mfu-page">
     <!-- Breadcrumb -->
     <div class="mfu-breadcrumb">
-      <router-link to="/mfu/records" class="mfu-breadcrumb-link">RECORDS</router-link>
+      <router-link to="/mfu/records" class="mfu-breadcrumb-link">{{ isAdmin ? 'RECORDS' : 'YOUR VIOLATION' }}</router-link>
       <span class="mfu-breadcrumb-sep">&gt;</span>
-      <span class="mfu-breadcrumb-current">VIEW DETAILS</span>
+      <span class="mfu-breadcrumb-current">{{ isAdmin ? 'VIEW DETAILS' : 'DETAILS' }}</span>
     </div>
 
     <!-- Page Header -->
@@ -16,7 +16,7 @@
           {{ statusLabel }}
         </span>
       </div>
-      <div class="mfu-detail-header-right">
+      <div class="mfu-detail-header-right" v-if="isAdmin">
         <button class="mfu-action-btn mfu-action-btn--ghost">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Export
@@ -55,7 +55,7 @@
         </div>
 
         <!-- Audit History -->
-        <div class="mfu-audit-card mt-4">
+        <div v-if="isAdmin" class="mfu-audit-card mt-4">
           <div class="mfu-audit-title">AUDIT HISTORY</div>
           <div class="mfu-timeline">
             <div v-for="(event, idx) in auditHistory" :key="idx" class="mfu-timeline-item">
@@ -121,7 +121,7 @@
         </div>
 
         <!-- Reviewer Action Panel -->
-        <div class="mfu-reviewer-card mt-4">
+        <div v-if="isAdmin" class="mfu-reviewer-card mt-4">
           <div class="mfu-reviewer-title">REVIEWER ACTION PANEL</div>
           <div class="mfu-reviewer-body">
             <label class="mfu-reviewer-label">INTERNAL NOTES</label>
@@ -174,9 +174,11 @@
 
 <script>
 import api from '@/service/api'
+import securityAccess from '@/projects/mixins/securityAccess'
 
 export default {
   name: 'RecordDetail',
+  mixins: [securityAccess],
   data() {
     return {
       record: {
@@ -198,6 +200,9 @@ export default {
     }
   },
   computed: {
+    isAdmin() {
+      return this.canViewPath('/newsystem/registry')
+    },
     recordId() {
       return this.$route.params.id || '0000'
     },

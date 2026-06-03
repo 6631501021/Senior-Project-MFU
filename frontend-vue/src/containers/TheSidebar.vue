@@ -84,8 +84,7 @@ export default {
   },
   methods: {
     onLogout() {
-      this.$store.dispatch('auth/logout')
-      this.$router.push('/pages/login')
+      this.$store.dispatch('auth/signOut')
     },
     normalizePermissionPath(path) {
       if (!path) return ''
@@ -115,6 +114,16 @@ export default {
         return requiresExplicitPermission ? !this.$store.state.XAccessToken : true
       }
       const matrix = this.$store.getters['security/matrix'] || {}
+      const isAdmin = !!(matrix['/newsystem/registry'] && (matrix['/newsystem/registry'].view || matrix['/newsystem/registry'].all))
+
+      if (!isAdmin) {
+        // Non-admin users should only see Dashboard and Records (Your Violation)
+        const path = this.normalizePermissionPath(item.to || item.route || '')
+        if (path !== '/dashboard' && path !== '/mfu/records') {
+          return false
+        }
+      }
+
       const permissionPath = item.permission && item.permission.path
         ? item.permission.path
         : (item.to || item.route || '')
@@ -144,8 +153,10 @@ export default {
         if (dropdownItems) nextItem.items = dropdownItems
 
         const hasVisibleChildren = !!((children && children.length) || (dropdownItems && dropdownItems.length))
+        const isDropdown = item._name === 'CSidebarNavDropdown'
+        const showItem = isDropdown ? hasVisibleChildren : (hasVisibleChildren || this.hasViewPermission(item))
 
-        if (hasVisibleChildren || this.hasViewPermission(item)) {
+        if (showItem) {
           result.push(nextItem)
         }
 

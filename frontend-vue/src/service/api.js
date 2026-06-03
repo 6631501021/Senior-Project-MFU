@@ -168,6 +168,8 @@ export default {
     switch (method){
       case 'signin':
         return instance.post("/api/v1/signin",data);
+      case 'register':
+        return instance.post("/api/v1/register",data);
       case 'twofa-request':
         return instance.post("/api/v1/auth/2fa/request", data || {});
       case 'twofa-verify':
