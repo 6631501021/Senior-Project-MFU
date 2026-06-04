@@ -23,12 +23,6 @@ export default function buildNav (t) {
           icon: 'cil-clock'
         },
         {
-          _name: 'CSidebarNavItem',
-          name: 'Analytics',
-          to: '/mfu/analytics',
-          icon: 'cil-chart'
-        },
-        {
           _name: 'CSidebarNavTitle',
           _children: [t('nav.accessControl')]
         },
