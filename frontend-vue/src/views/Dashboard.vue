@@ -1,211 +1,4 @@
 <template>
-<<<<<<< HEAD
-  <div class="mfu-dashboard">
-    <!-- Admin Dashboard View -->
-    <div v-if="isAdmin">
-      <!-- Page Header -->
-      <div class="mfu-dash-header">
-        <h1 class="mfu-dash-heading">System Overview</h1>
-        <p class="mfu-dash-sub">MFU Main Gate</p>
-      </div>
-
-      <!-- Stat Cards -->
-      <CRow class="mb-4">
-        <CCol lg="4" class="mb-3">
-          <div class="mfu-stat-card">
-            <div class="mfu-stat-card-top">
-              <div class="mfu-stat-icon mfu-stat-icon--red">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#dc2626" stroke-width="2"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="3"/></svg>
-              </div>
-              <span class="mfu-stat-change mfu-stat-change--up">+12%</span>
-            </div>
-            <div class="mfu-stat-label">VIOLATION TODAY</div>
-            <div class="mfu-stat-value">{{ violationToday.toLocaleString() }}</div>
-          </div>
-        </CCol>
-        <CCol lg="4" class="mb-3">
-          <div class="mfu-stat-card">
-            <div class="mfu-stat-card-top">
-              <div class="mfu-stat-icon mfu-stat-icon--amber">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#d97706" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg>
-              </div>
-              <span class="mfu-stat-change mfu-stat-change--up">+4.2%</span>
-            </div>
-            <div class="mfu-stat-label">VIOLATION LAST HOUR</div>
-            <div class="mfu-stat-value">{{ violationLastHour }}</div>
-          </div>
-        </CCol>
-        <CCol lg="4" class="mb-3">
-          <div class="mfu-stat-card">
-            <div class="mfu-stat-card-top">
-              <div class="mfu-stat-icon mfu-stat-icon--slate">
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2"><rect x="2" y="3" width="20" height="14" rx="2"/><line x1="8" y1="21" x2="16" y2="21"/><line x1="12" y1="17" x2="12" y2="21"/></svg>
-              </div>
-            </div>
-            <div class="mfu-stat-label">ACTIVE CAMERAS</div>
-            <div class="mfu-stat-value">{{ activeCameras }}</div>
-          </div>
-        </CCol>
-      </CRow>
-
-      <!-- Chart & Recent Violations -->
-      <CRow>
-        <CCol lg="8" class="mb-4">
-          <div class="mfu-chart-panel">
-            <div class="mfu-chart-panel-header">
-              <h3 class="mfu-chart-panel-title">Detection Trends</h3>
-              <div class="mfu-chart-toggle">
-                <button
-                  :class="['mfu-toggle-btn', { active: chartRange === '24h' }]"
-                  @click="chartRange = '24h'"
-                >24 HOURS</button>
-                <button
-                  :class="['mfu-toggle-btn', { active: chartRange === '7d' }]"
-                  @click="chartRange = '7d'"
-                >7 DAYS</button>
-              </div>
-            </div>
-            <div class="mfu-chart-body">
-              <CChartBar
-                :datasets="trendData.datasets"
-                :labels="trendData.labels"
-                :options="chartOptions"
-                style="height: 280px;"
-              />
-            </div>
-          </div>
-        </CCol>
-        <CCol lg="4" class="mb-4">
-          <div class="mfu-violations-panel">
-            <div class="mfu-violations-header">
-              <h3 class="mfu-violations-title">RECENT VIOLATIONS</h3>
-              <span class="mfu-live-badge">LIVE</span>
-            </div>
-            <div class="mfu-violations-list">
-              <div
-                v-for="(item, idx) in recentViolations"
-                :key="idx"
-                class="mfu-violation-item"
-              >
-                <div class="mfu-violation-thumb">
-                  <img :src="item.image" :alt="'Violation ' + (idx + 1)" />
-                </div>
-                <div class="mfu-violation-info">
-                  <div class="mfu-violation-type">{{ item.type }}</div>
-                  <div class="mfu-violation-location">{{ item.location }}</div>
-                  <div class="mfu-violation-plate">PLATE: {{ item.plate }}</div>
-                </div>
-                <div class="mfu-violation-time">{{ item.time }}</div>
-              </div>
-            </div>
-            <router-link to="/mfu/records" class="mfu-violations-viewall">
-              VIEW ALL INCIDENTS
-            </router-link>
-          </div>
-        </CCol>
-      </CRow>
-    </div>
-
-    <!-- User Dashboard View -->
-    <div v-else>
-      <!-- Page Header -->
-      <div class="mfu-dash-header">
-        <h1 class="mfu-dash-heading font-weight-bold" style="font-size: 2.25rem; color:#0f172a; margin-bottom: 1.5rem;">DASHBOARD</h1>
-      </div>
-
-      <!-- Stat Cards -->
-      <CRow class="mb-4">
-        <CCol md="3" sm="6" class="mb-3">
-          <div class="user-stat-card border-card">
-            <div class="user-stat-icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a31d1d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="5.5" cy="17.5" r="2.5"/><circle cx="18.5" cy="17.5" r="2.5"/><path d="M3 17.5V14h7v3.5M10.5 11.5L8 14h5zM18.5 17.5h-5V14h5z"/></svg>
-            </div>
-            <div class="user-stat-label">YOUR VIOLATION TODAY</div>
-            <div class="user-stat-value">{{ violationToday.toLocaleString() }}</div>
-          </div>
-        </CCol>
-        <CCol md="3" sm="6" class="mb-3">
-          <div class="user-stat-card border-card">
-            <div class="user-stat-icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a31d1d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-            </div>
-            <div class="user-stat-label">YOUR VIOLATION WEEKS</div>
-            <div class="user-stat-value">{{ violationsWeek.toLocaleString() }}</div>
-          </div>
-        </CCol>
-        <CCol md="3" sm="6" class="mb-3">
-          <div class="user-stat-card border-card">
-            <div class="user-stat-icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#a31d1d" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/><path d="M7 14h2v2H7z"/></svg>
-            </div>
-            <div class="user-stat-label">YOUR VIOLATION MONTH</div>
-            <div class="user-stat-value">{{ violationsMonth.toLocaleString() }}</div>
-          </div>
-        </CCol>
-        <CCol md="3" sm="6" class="mb-3">
-          <div class="user-stat-card solid-card">
-            <div class="user-stat-icon-wrap">
-              <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
-            </div>
-            <div class="user-stat-label text-white">YOUR TOTAL VIOLATION</div>
-            <div class="user-stat-value text-white">{{ totalViolation.toLocaleString() }}</div>
-          </div>
-        </CCol>
-      </CRow>
-
-      <!-- Chart & Recent Violations -->
-      <CRow>
-        <CCol lg="8" class="mb-4">
-          <div class="user-chart-panel">
-            <div class="user-chart-panel-header">
-              <h3 class="user-chart-panel-title font-weight-bold" style="color: #0f172a;">VIOLATION TREND</h3>
-              <div class="mfu-chart-toggle">
-                <button
-                  :class="['mfu-toggle-btn', { active: chartRange === '24h' }]"
-                  @click="chartRange = '24h'"
-                >24 HOURS</button>
-                <button
-                  :class="['mfu-toggle-btn', { active: chartRange === '7d' }]"
-                  @click="chartRange = '7d'"
-                >7 DAYS</button>
-              </div>
-            </div>
-            <div class="mfu-chart-body">
-              <CChartBar
-                :datasets="trendData.datasets"
-                :labels="trendData.labels"
-                :options="chartOptions"
-                style="height: 280px;"
-              />
-            </div>
-          </div>
-        </CCol>
-        <CCol lg="4" class="mb-4">
-          <div class="user-violations-panel">
-            <div class="user-violations-header">
-              <h3 class="user-violations-title font-weight-bold" style="color: #0f172a;">Your violation</h3>
-            </div>
-            <div class="mfu-violations-list">
-              <div
-                v-for="(item, idx) in recentViolations"
-                :key="idx"
-                class="mfu-violation-item"
-              >
-                <div class="mfu-violation-thumb">
-                  <img :src="item.image" :alt="'Violation ' + (idx + 1)" />
-                </div>
-                <div class="mfu-violation-info">
-                  <div class="mfu-violation-type font-weight-bold" style="color: #a31d1d;">{{ item.type }}</div>
-                  <div class="mfu-violation-location" style="color: #475569;">{{ item.location }}</div>
-                  <div class="mfu-violation-plate" style="color: #64748b;">PLATE: {{ item.plate }}</div>
-                </div>
-                <div class="mfu-violation-time" style="color: #94a3b8;">{{ item.time }}</div>
-              </div>
-            </div>
-          </div>
-        </CCol>
-      </CRow>
-=======
   <div class="mfu-page">
     <!-- Page Header -->
     <div class="mfu-page-header mb-4">
@@ -348,7 +141,6 @@
           </tbody>
         </table>
       </div>
->>>>>>> Dashboard-UI-(Gus)
     </div>
   </div>
 </template>
@@ -356,33 +148,20 @@
 <script>
 import { CChartBar, CChartDoughnut } from '@coreui/vue-chartjs'
 import api from '@/service/api'
-import securityAccess from '@/projects/mixins/securityAccess'
 
 export default {
   name: 'Dashboard',
-  mixins: [securityAccess],
   components: {
     CChartBar,
     CChartDoughnut
   },
   data() {
     return {
-<<<<<<< HEAD
-      violationToday: 0,
-      violationLastHour: 0,
-      violationsWeek: 0,
-      violationsMonth: 0,
-      totalViolation: 0,
-      activeCameras: 0,
-      chartRange: '24h',
-      recentViolations: [],
-=======
       timeRange: 'hourly',
       totalDetections: 0,
       criticalViolations: 0,
       activeGates: 0,
       detectionRate: 0,
->>>>>>> Dashboard-UI-(Gus)
       hourlyTrendData: [],
       dailyTrendData: [],
       apiTypeBreakdown: [],
@@ -434,16 +213,8 @@ export default {
     }
   },
   computed: {
-<<<<<<< HEAD
-    isAdmin() {
-      return this.canViewPath('/newsystem/registry')
-    },
-    trendData() {
-      if (this.chartRange === '24h') {
-=======
     barData() {
       if (this.timeRange === 'hourly') {
->>>>>>> Dashboard-UI-(Gus)
         if (this.apiConnected && this.hourlyTrendData.length > 0) {
           var labels = []
           var data = []
@@ -456,13 +227,7 @@ export default {
             labels: labels,
             datasets: [{
               label: 'Violations',
-<<<<<<< HEAD
-              backgroundColor: data.map(function (v) {
-                return v > 50 ? '#a31d1d' : v > 20 ? '#d4bebe' : '#f0e4e4'
-              }),
-=======
               backgroundColor: data.map(function (v) { return v > 50 ? '#991b1b' : v > 20 ? '#f87171' : '#fecdd3' }),
->>>>>>> Dashboard-UI-(Gus)
               borderRadius: 6,
               barPercentage: 0.55,
               data: data
@@ -473,14 +238,7 @@ export default {
           labels: ['06:00', '08:00', '10:00', '12:00', '14:00', '16:00', '18:00', '20:00', '22:00'],
           datasets: [{
             label: 'Violations',
-<<<<<<< HEAD
-            backgroundColor: [
-              '#f0e4e4', '#f0e4e4', '#d4bebe', '#a31d1d',
-              '#a31d1d', '#d4bebe', '#f0e4e4', '#f0e4e4', '#f0e4e4'
-            ],
-=======
             backgroundColor: ['#fecdd3', '#fecdd3', '#f87171', '#991b1b', '#991b1b', '#f87171', '#fecdd3', '#fecdd3', '#fecdd3'],
->>>>>>> Dashboard-UI-(Gus)
             borderRadius: 6,
             barPercentage: 0.55,
             data: [22, 35, 52, 78, 65, 48, 30, 25, 18]
@@ -500,13 +258,7 @@ export default {
           labels: labels7,
           datasets: [{
             label: 'Violations',
-<<<<<<< HEAD
-            backgroundColor: data7.map(function (v) {
-              return v > 30 ? '#a31d1d' : v > 15 ? '#d4bebe' : '#f0e4e4'
-            }),
-=======
             backgroundColor: data7.map(function (v) { return v > 30 ? '#991b1b' : v > 15 ? '#f87171' : '#fecdd3' }),
->>>>>>> Dashboard-UI-(Gus)
             borderRadius: 6,
             barPercentage: 0.55,
             data: data7
@@ -517,14 +269,7 @@ export default {
         labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
         datasets: [{
           label: 'Violations',
-<<<<<<< HEAD
-          backgroundColor: [
-            '#f0e4e4', '#d4bebe', '#a31d1d', '#d4bebe',
-            '#f0e4e4', '#f0e4e4', '#f0e4e4'
-          ],
-=======
           backgroundColor: ['#fecdd3', '#f87171', '#991b1b', '#f87171', '#fecdd3', '#fecdd3', '#fecdd3'],
->>>>>>> Dashboard-UI-(Gus)
           borderRadius: 6,
           barPercentage: 0.55,
           data: [145, 210, 280, 195, 110, 85, 60]
@@ -538,18 +283,6 @@ export default {
   methods: {
     async fetchAnalyticsData() {
       try {
-<<<<<<< HEAD
-        // Fetch stats
-        var statsRes = await api.mfuVision('stats')
-        if (statsRes && statsRes.data && statsRes.data.data) {
-          var s = statsRes.data.data
-          this.violationToday = s.violations_today || 0
-          this.violationLastHour = s.violations_last_hour || 0
-          this.violationsWeek = s.violations_week || 0
-          this.violationsMonth = s.violations_month || 0
-          this.totalViolation = s.total_records || 0
-          this.activeCameras = s.active_cameras || 0
-=======
         var res = await api.mfuVision('stats')
         if (res && res.data && res.data.data) {
           var s = res.data.data
@@ -557,7 +290,6 @@ export default {
           this.criticalViolations = s.violations_today || 0
           this.activeGates = s.active_cameras || 0
           this.detectionRate = s.detection_rate || 0
->>>>>>> Dashboard-UI-(Gus)
           this.hourlyTrendData = s.hourly_trend || []
           this.dailyTrendData = s.daily_trend || []
           this.apiConnected = true
@@ -606,40 +338,10 @@ export default {
         this.detectionRate = 72
       }
     },
-<<<<<<< HEAD
-    applyMockData() {
-      this.violationToday = 1000
-      this.violationLastHour = 500
-      this.activeCameras = 1
-      this.violationsWeek = 1000
-      this.violationsMonth = 1000
-      this.totalViolation = 1000
-      this.recentViolations = [
-        { type: 'No Helmet Detected', location: 'Post guard gate - IN', plate: '1กก-8822', time: '2m ago', image: 'https://placehold.co/80x60/1f2937/94a3b8?text=CAM' },
-        { type: 'No Helmet Detected', location: 'Post guard gate - OUT', plate: '3กb-1234', time: '8m ago', image: 'https://placehold.co/80x60/1f2937/94a3b8?text=CAM' },
-        { type: 'No Helmet Detected', location: 'Post guard gate - IN', plate: 'ABD-123', time: '14m ago', image: 'https://placehold.co/80x60/1f2937/94a3b8?text=CAM' }
-      ]
-    },
-    formatViolationType(type) {
-      var map = { no_helmet: 'No Helmet Detected', unauthorized_entry: 'Unauthorized Entry', speeding: 'Speeding', other: 'Other Violation' }
-      return map[type] || type || 'Unknown'
-    },
-    timeAgo(timestamp) {
-      if (!timestamp) return ''
-      var diff = Date.now() - new Date(timestamp).getTime()
-      var minutes = Math.floor(diff / 60000)
-      if (minutes < 1) return 'just now'
-      if (minutes < 60) return minutes + 'm ago'
-      var hours = Math.floor(minutes / 60)
-      if (hours < 24) return hours + 'h ago'
-      var days = Math.floor(hours / 24)
-      return days + 'd ago'
-=======
     getComplianceColor(rate) {
       if (rate >= 90) return 'linear-gradient(90deg, #22c55e, #4ade80)'
       if (rate >= 70) return 'linear-gradient(90deg, #eab308, #facc15)'
       return 'linear-gradient(90deg, #ef4444, #f87171)'
->>>>>>> Dashboard-UI-(Gus)
     }
   }
 }
@@ -915,79 +617,5 @@ export default {
 .mfu-status--critical {
   background: #fee2e2;
   color: #991b1b;
-}
-
-/* User Dashboard specific styles */
-.user-stat-card {
-  background: #ffffff;
-  border-radius: 1rem;
-  padding: 1.5rem;
-  box-shadow: 0 1px 3px rgba(163, 29, 29, 0.05), 0 8px 24px rgba(163, 29, 29, 0.03);
-  height: 100%;
-}
-.border-card {
-  border: 1px solid #a31d1d;
-}
-.solid-card {
-  background-color: #a31d1d;
-  color: #ffffff;
-}
-.user-stat-icon-wrap {
-  margin-bottom: 0.75rem;
-  display: flex;
-  align-items: center;
-}
-.user-stat-label {
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  color: #64748b;
-  text-transform: uppercase;
-  margin-bottom: 0.25rem;
-}
-.user-stat-value {
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: #0f172a;
-}
-.user-chart-panel {
-  background: #ffffff;
-  border-radius: 1rem;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06), 0 8px 24px rgba(15, 23, 42, 0.04);
-  border: 1px solid #f1f5f9;
-  overflow: hidden;
-  height: 100%;
-}
-.user-chart-panel-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
-}
-.user-chart-panel-title {
-  font-size: 1.1rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
-}
-.user-violations-panel {
-  background: #ebdcdc;
-  border: 1px solid #d4bebe;
-  border-radius: 1rem;
-  overflow: hidden;
-  height: 100%;
-  display: flex;
-  flex-direction: column;
-}
-.user-violations-header {
-  padding: 1.25rem 1.5rem;
-  border-bottom: 1px solid #d4bebe;
-}
-.user-violations-title {
-  font-size: 1.25rem;
-  font-weight: 700;
-  color: #0f172a;
-  margin: 0;
 }
 </style>
