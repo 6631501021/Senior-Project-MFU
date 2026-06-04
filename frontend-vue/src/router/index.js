@@ -14,7 +14,6 @@ const BusinessOperations = () => import('@/projects/views/operations/BusinessOpe
 const RealTimeDetection = () => import('@/views/RealTimeDetection')
 const Records = () => import('@/views/Records')
 const RecordDetail = () => import('@/views/RecordDetail')
-const Analytics = () => import('@/views/Analytics')
 const MFUVision = () => import('@/views/MFUVision')
 const CreateMenu = () => import('@/projects/views/security/CreateMenu')
 const CreateGroup = () => import('@/projects/views/security/CreateGroup')

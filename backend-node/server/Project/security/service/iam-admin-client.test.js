@@ -725,7 +725,7 @@ test('iam-admin-client invites accounts into newSystem scope only', async functi
   }, { lang: 'en' });
 
   assert.equal(invited.invited, true);
-  assert.equal(invited.account.email, 'new.newSystem@example.com');
+  assert.equal(invited.account.email, 'new.newsystem@example.com');
   assert.deepEqual(
     invited.groups.map(function (item) { return item && item._id; }),
     ['group-2']

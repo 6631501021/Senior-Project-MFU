@@ -35,9 +35,12 @@ test('NewSystem bootstrap script provisions permissions and assigns the configur
       PROJECT_PERMISSION_ROOT_PATH: '/new-system/security/permission',
       PROJECT_PERMISSION_PATHS: '/new-system/security/permission,/dashboard,/accounts/directory',
       PROJECT_PERMISSION_ACCOUNT_EMAIL: 'ops@example.com',
+      PROJECT_PERMISSION_ACCOUNT_ID: '',
       IAM_SDK_BASE_URL: baseUrl,
       IAM_SDK_CLIENT_ID: 'sample-sdk',
       IAM_SDK_CLIENT_SECRET: 'super-secret',
+      IAM_ADMIN_CLIENT_ID: 'sample-sdk',
+      IAM_ADMIN_CLIENT_SECRET: 'super-secret',
       IAM_SDK_AUDIENCE: 'new-system-api',
       IAM_SDK_ADMIN_AUDIENCE: 'iam-admin-api',
       IAM_SDK_SCOPE: 'iam.security.read iam.security.write iam.audit.read iam.accounts.read'

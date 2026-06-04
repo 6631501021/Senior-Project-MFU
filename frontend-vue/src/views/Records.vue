@@ -56,14 +56,6 @@
                 @click="setRowCount(20)"
               >20</button>
             </div>
-          <div class="mfu-filter-group">
-            <label class="mfu-filter-label">ROW</label>
-            <select class="mfu-filter-select" v-model="perPage" @change="applyFilter">
-              <option :value="5">5 (default)</option>
-              <option :value="10">10</option>
-              <option :value="20">20</option>
-              <option :value="25">25</option>
-            </select>
           </div>
           <div class="mfu-filter-actions">
             <button class="mfu-btn mfu-btn--primary" @click="applyFilter">
@@ -178,7 +170,6 @@ export default {
       noHelmetCount: mockRecords.filter(function (r) { return r.violation_type === 'no_helmet' }).length,
       currentPage: 1,
       perPage: 5,
-      records: mockRecords.slice(0, 5),
       records: [],
       loading: false
     }
@@ -265,15 +256,6 @@ export default {
       this.currentPage = 1
       this.applyMockData(count, 1)
       this.fetchRecords()
-    applyMockData() {
-      this.totalRecords = 4
-      this.noHelmetCount = 4
-      this.records = [
-        { _id: 'mock-1', timestamp: '2023-11-24T14:32:01Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-01' },
-        { _id: 'mock-2', timestamp: '2023-11-24T14:22:40Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-02' },
-        { _id: 'mock-3', timestamp: '2023-11-24T14:28:12Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-03' },
-        { _id: 'mock-4', timestamp: '2023-11-24T14:15:59Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-04' }
-      ]
     },
     applyFilter() {
       this.currentPage = 1

@@ -37,6 +37,8 @@ test('bootstrap script provisions template-managed permission data through IAM a
       IAM_SDK_BASE_URL: baseUrl,
       IAM_SDK_CLIENT_ID: 'sample-sdk',
       IAM_SDK_CLIENT_SECRET: 'super-secret',
+      IAM_ADMIN_CLIENT_ID: 'sample-sdk',
+      IAM_ADMIN_CLIENT_SECRET: 'super-secret',
       IAM_SDK_AUDIENCE: 'new-system-api',
       IAM_SDK_ADMIN_AUDIENCE: 'iam-admin-api',
       IAM_SDK_SCOPE: 'sample.read sample.write iam.security.read iam.security.write iam.audit.read iam.accounts.read'
