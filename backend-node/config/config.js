@@ -3,7 +3,11 @@
  */
 
 var os = require("os");
-require('dotenv').config();
+var path = require("path");
+
+// Load environment variables from the appropriate .env file
+var envPath = process.env.DOTENV_CONFIG_PATH || '.env.local';
+require('dotenv').config({ path: path.resolve(__dirname, '..', envPath) });
 
 function firstNonEmpty() {
     for (var index = 0; index < arguments.length; index += 1) {
