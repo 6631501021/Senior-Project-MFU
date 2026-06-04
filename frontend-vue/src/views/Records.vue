@@ -34,6 +34,28 @@
               <option value="medical">Medical Center Gate</option>
             </select>
           </div>
+          <div class="mfu-filter-group mfu-filter-group--row-count">
+            <label class="mfu-filter-label">ROWS</label>
+            <div class="mfu-row-count-buttons">
+              <button
+                type="button"
+                class="mfu-btn mfu-btn--outline"
+                :class="{ active: perPage === 5 }"
+                @click="setRowCount(5)"
+              >5</button>
+              <button
+                type="button"
+                class="mfu-btn mfu-btn--outline"
+                :class="{ active: perPage === 10 }"
+                @click="setRowCount(10)"
+              >10</button>
+              <button
+                type="button"
+                class="mfu-btn mfu-btn--outline"
+                :class="{ active: perPage === 20 }"
+                @click="setRowCount(20)"
+              >20</button>
+            </div>
           <div class="mfu-filter-group">
             <label class="mfu-filter-label">ROW</label>
             <select class="mfu-filter-select" v-model="perPage" @change="applyFilter">
@@ -119,6 +141,29 @@
 import api from '@/service/api'
 import securityAccess from '@/projects/mixins/securityAccess'
 
+const mockRecords = [
+  { _id: 'mock-1', timestamp: '2023-11-24T14:32:01Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-01' },
+  { _id: 'mock-2', timestamp: '2023-11-24T14:22:40Z', violation_type: 'unauthorized_entry', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-02' },
+  { _id: 'mock-3', timestamp: '2023-11-24T14:28:12Z', violation_type: 'speeding', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-03' },
+  { _id: 'mock-4', timestamp: '2023-11-24T14:15:59Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-04' },
+  { _id: 'mock-5', timestamp: '2023-11-24T14:05:25Z', violation_type: 'other', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-05' },
+  { _id: 'mock-6', timestamp: '2023-11-24T13:55:18Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-06' },
+  { _id: 'mock-7', timestamp: '2023-11-24T13:44:50Z', violation_type: 'unauthorized_entry', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-07' },
+  { _id: 'mock-8', timestamp: '2023-11-24T13:38:08Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-08' },
+  { _id: 'mock-9', timestamp: '2023-11-24T13:25:44Z', violation_type: 'speeding', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-09' },
+  { _id: 'mock-10', timestamp: '2023-11-24T13:12:30Z', violation_type: 'other', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-10' },
+  { _id: 'mock-11', timestamp: '2023-11-24T13:02:15Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-11' },
+  { _id: 'mock-12', timestamp: '2023-11-24T12:52:03Z', violation_type: 'unauthorized_entry', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-12' },
+  { _id: 'mock-13', timestamp: '2023-11-24T12:42:20Z', violation_type: 'speeding', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-13' },
+  { _id: 'mock-14', timestamp: '2023-11-24T12:33:51Z', violation_type: 'other', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-14' },
+  { _id: 'mock-15', timestamp: '2023-11-24T12:24:16Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-15' },
+  { _id: 'mock-16', timestamp: '2023-11-24T12:15:07Z', violation_type: 'unauthorized_entry', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-16' },
+  { _id: 'mock-17', timestamp: '2023-11-24T12:05:44Z', violation_type: 'speeding', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-17' },
+  { _id: 'mock-18', timestamp: '2023-11-24T11:55:21Z', violation_type: 'other', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-18' },
+  { _id: 'mock-19', timestamp: '2023-11-24T11:44:49Z', violation_type: 'no_helmet', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-19' },
+  { _id: 'mock-20', timestamp: '2023-11-24T11:35:05Z', violation_type: 'unauthorized_entry', image_url: 'https://placehold.co/120x72/334155/94a3b8?text=CAM-20' }
+]
+
 export default {
   name: 'Records',
   mixins: [securityAccess],
@@ -129,10 +174,11 @@ export default {
         type: '',
         location: ''
       },
-      totalRecords: 0,
-      noHelmetCount: 0,
+      totalRecords: mockRecords.length,
+      noHelmetCount: mockRecords.filter(function (r) { return r.violation_type === 'no_helmet' }).length,
       currentPage: 1,
       perPage: 5,
+      records: mockRecords.slice(0, 5),
       records: [],
       loading: false
     }
@@ -193,19 +239,32 @@ export default {
         var res = await api.mfuVision('records', params)
         if (res && res.data && res.data.data) {
           var data = res.data.data
-          this.records = data.records || []
-          if (data.pagination) {
-            this.totalRecords = data.pagination.total || 0
+          if (Array.isArray(data.records) && data.records.length > 0) {
+            this.records = data.records
+            if (data.pagination) {
+              this.totalRecords = data.pagination.total || data.records.length
+            }
+            this.noHelmetCount = this.records.filter(function (r) { return r.violation_type === 'no_helmet' }).length
           }
-          // Count no-helmet violations
-          this.noHelmetCount = this.records.filter(function (r) { return r.violation_type === 'no_helmet' }).length
         }
       } catch (err) {
         // API unavailable - apply mock data
-        this.applyMockData()
+        this.applyMockData(this.perPage, this.currentPage)
       }
       this.loading = false
     },
+    applyMockData(count = this.perPage, page = this.currentPage) {
+      var start = (page - 1) * count
+      this.records = mockRecords.slice(start, start + count)
+      this.totalRecords = mockRecords.length
+      this.noHelmetCount = mockRecords.filter(function (r) { return r.violation_type === 'no_helmet' }).length
+    },
+    setRowCount(count) {
+      if (this.perPage === count) return
+      this.perPage = count
+      this.currentPage = 1
+      this.applyMockData(count, 1)
+      this.fetchRecords()
     applyMockData() {
       this.totalRecords = 4
       this.noHelmetCount = 4
@@ -314,16 +373,21 @@ export default {
   transition: border-color 0.2s ease;
 }
 
-.mfu-filter-input:focus,
-.mfu-filter-select:focus {
-  border-color: #991b1b;
-  box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.08);
-}
-
-.mfu-filter-actions {
+.mfu-filter-group--row-count .mfu-row-count-buttons {
   display: flex;
   gap: 0.5rem;
-  flex-shrink: 0;
+}
+
+.mfu-row-count-buttons .mfu-btn {
+  min-width: 3rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.mfu-row-count-buttons .mfu-btn.active,
+.mfu-row-count-buttons .mfu-btn.active:hover {
+  background-color: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
 }
 
 .mfu-btn {
