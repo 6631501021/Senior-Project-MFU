@@ -69,11 +69,7 @@ const router = new Router({
           name: 'RecordDetail',
           component: RecordDetail
         },
-        {
-          path: 'mfu/analytics',
-          name: 'Analytics',
-          component: Analytics
-        },
+        
         {
           path: 'newSystem/registry',
           name: 'New System Registry',

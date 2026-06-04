@@ -15,20 +15,6 @@
     <CHeaderNav class="d-none d-lg-flex mr-auto align-items-center">
       <div class="header-brand-title">MFU Vision</div>
     </CHeaderNav>
-    <CHeaderNav class="d-none d-lg-flex align-items-center mfu-header-nav">
-      <CHeaderNavItem class="px-2">
-        <router-link to="/dashboard" class="mfu-header-link" active-class="mfu-header-link--active">Dashboard</router-link>
-      </CHeaderNavItem>
-      <CHeaderNavItem class="px-2">
-        <router-link to="/mfu/realtime" class="mfu-header-link" active-class="mfu-header-link--active">Real-time Detection</router-link>
-      </CHeaderNavItem>
-      <CHeaderNavItem class="px-2">
-        <router-link to="/mfu/records" class="mfu-header-link" active-class="mfu-header-link--active">Records</router-link>
-      </CHeaderNavItem>
-      <CHeaderNavItem class="px-2">
-        <router-link to="/mfu/analytics" class="mfu-header-link" active-class="mfu-header-link--active">Analytics</router-link>
-      </CHeaderNavItem>
-    </CHeaderNav>
     <CHeaderNav>
       <TheHeaderDropdownNotif/>
       <CHeaderNavItem>
