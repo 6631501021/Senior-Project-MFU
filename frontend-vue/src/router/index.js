@@ -7,6 +7,7 @@ const Dashboard = () => import('@/views/Dashboard')
 const Page404 = () => import('@/views/pages/Page404')
 const Page500 = () => import('@/views/pages/Page500')
 const Login = () => import('@/views/pages/Login')
+const Register = () => import('@/views/pages/Register')
 const NewSystemRegistry = () => import('@/projects/views/newSystem/NewSystemRegistry')
 const AccountDirectory = () => import('@/projects/views/accounts/Management')
 const BusinessOperations = () => import('@/projects/views/operations/BusinessOperations')
@@ -69,11 +70,7 @@ const router = new Router({
           name: 'RecordDetail',
           component: RecordDetail
         },
-        {
-          path: 'mfu/analytics',
-          name: 'Analytics',
-          component: Analytics
-        },
+        
         {
           path: 'newSystem/registry',
           name: 'New System Registry',
@@ -199,6 +196,11 @@ const router = new Router({
           path: 'login',
           name: 'Login',
           component: Login
+        },
+        {
+          path: 'register',
+          name: 'Register',
+          component: Register
         }
       ]
     },

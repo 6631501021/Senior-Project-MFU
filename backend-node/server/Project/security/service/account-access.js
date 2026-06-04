@@ -467,7 +467,14 @@ async function getLocalEffectivePermissions(accountId) {
     permissionRows = await SecurityPermission.onQuerys({ group: { $in: groupIds } });
   }
 
-  const matrix = buildPermissionMatrix(permissionRows);
+  let matrix = buildPermissionMatrix(permissionRows);
+  if (assignments.length === 0) {
+    matrix = {
+      '/dashboard': { view: true, edit: false, delete: false, action: false, all: false, logs: false },
+      '/mfu/records': { view: true, edit: false, delete: false, action: false, all: false, logs: false },
+      '/mfu/records/:id': { view: true, edit: false, delete: false, action: false, all: false, logs: false }
+    };
+  }
   const effectivePermissions = Object.keys(matrix)
     .sort()
     .map(function (path) {
@@ -493,6 +500,12 @@ async function getLocalEffectivePermissions(accountId) {
 }
 
 async function getEffectivePermissions(accountId, options) {
+  const newSystemAccount = await findNewSystemAccountById(accountId);
+  if (newSystemAccount && newSystemAccount.control && newSystemAccount.control.sso === false) {
+    const localData = await getLocalEffectivePermissions(accountId);
+    return Object.assign({}, localData, { source: 'local' });
+  }
+
   if (useIamPermissionSource()) {
     return getIamPermissionData(accountId, options || {});
   }
@@ -503,10 +516,14 @@ async function getEffectivePermissions(accountId, options) {
 async function evaluatePermission(accountId, paths, action, options) {
   const candidates = Array.isArray(paths) ? paths.filter(Boolean) : [paths].filter(Boolean);
   const targetAccountId = options && options.targetAccountId ? options.targetAccountId : null;
+
+  const newSystemAccount = await findNewSystemAccountById(accountId);
+  const isLocal = !!(newSystemAccount && newSystemAccount.control && newSystemAccount.control.sso === false);
+
   let iamEvaluated = false;
   let lastIamData = null;
 
-  if (useIamPermissionSource() && candidates.length > 0) {
+  if (!isLocal && useIamPermissionSource() && candidates.length > 0) {
     for (let index = 0; index < candidates.length; index += 1) {
       const candidate = normalizePermissionPath(candidates[index]);
       if (!candidate) continue;

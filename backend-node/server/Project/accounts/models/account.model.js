@@ -29,6 +29,9 @@ var objsSchema  = new Schema({
     group                   : {type: Schema.ObjectId, ref: 'Setting_Account_Group'},
     code                    : {type: String, default: null},
     email                   : {type: String, default: null},
+    username                : {type: String, default: null},
+    password                : {type: String, default: null},
+    licensePlate            : {type: String, default: null},
     authen                  : [{
         type                    : {type: Schema.ObjectId, ref: 'Setting_Authen_Type'},
         username                : {type: String, default: null},
@@ -58,6 +61,7 @@ var objsSchema  = new Schema({
         msisdn              : {type: String, default: null} ,//phone number
         lineId              : {type: String, default: null},
         religion            : {type: String, default: null},
+        licensePlate        : {type: String, default: null},
     },
 
     address                 : [{
