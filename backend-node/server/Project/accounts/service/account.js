@@ -129,7 +129,7 @@ exports.onCheckAuthorization = async function (request, response, next) {
         var accessToken = headers['x-access-token'] ? String(headers['x-access-token']).trim() : '';
         var cookieHeader = headers.cookie ? String(headers.cookie).trim() : '';
         if (!accessToken && !cookieHeader) {
-            var missingTokenRes = await resMsg.onMessage_Response(0,40100);
+            var missingTokenRes = await resMsg.onMessage_Response(0, 40100);
             return response.status(401).json(missingTokenRes);
         }
 
@@ -155,7 +155,7 @@ exports.onCheckAuthorization = async function (request, response, next) {
         }
 
         if (!account || !account._id) {
-            var unauthorizedRes = await resMsg.onMessage_Response(0,40100);
+            var unauthorizedRes = await resMsg.onMessage_Response(0, 40100);
             return response.status(401).json(unauthorizedRes);
         }
 
@@ -168,7 +168,7 @@ exports.onCheckAuthorization = async function (request, response, next) {
         return next();
 
     } catch (err) {
-        var resData = await resMsg.onMessage_Response(0,40400)
+        var resData = await resMsg.onMessage_Response(0, 40400)
         response.status(404).json(resData);
     }
 };
@@ -178,7 +178,7 @@ exports.verifyIdTokenGoogle = async function (request, response, next) {
         if (request.body && request.body.token) {
             const token = String(request.body.token).trim();
             if (!token) {
-                var badToken = await resMsg.onMessage_Response(0,40100);
+                var badToken = await resMsg.onMessage_Response(0, 40100);
                 return response.status(401).json(badToken);
             }
 
@@ -206,14 +206,14 @@ exports.verifyIdTokenGoogle = async function (request, response, next) {
                     message: error && error.message ? error.message : 'unknown_error',
                     audience: audience
                 });
-                var invalidToken = await resMsg.onMessage_Response(0,40100);
+                var invalidToken = await resMsg.onMessage_Response(0, 40100);
                 return response.status(401).json(invalidToken);
             }
         } else {
             return next();
         }
     } catch (err) {
-        var resData = await resMsg.onMessage_Response(0,50000)
+        var resData = await resMsg.onMessage_Response(0, 50000)
         return response.status(500).json(resData);
     }
 };
@@ -237,9 +237,9 @@ exports.SingIn = async function (request, response, next) {
             ];
         } else if (request.body.username && request.body.password === "********") {
             var elemMatch = {};
-            elemMatch.type = (request.body.type == null)? new mongo.ObjectId("66a06852660ccb1debade7c5"):new mongo.ObjectId(request.body.username)
+            elemMatch.type = (request.body.type == null) ? new mongo.ObjectId("66a06852660ccb1debade7c5") : new mongo.ObjectId(request.body.username)
             elemMatch.username = request.body.username;
-            query.authen = { $elemMatch : elemMatch }
+            query.authen = { $elemMatch: elemMatch }
         } else {
             const resData = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(resData);
@@ -380,14 +380,14 @@ exports.onMe = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var notFound = await resMsg.onMessage_Response(0,40400);
+            var notFound = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(notFound);
         }
 
         var query = { _id: new mongo.ObjectId(accountId) };
         var doc = await Account.onQuery(query, [{ path: 'status', select: 'key title description group state' }]);
         if (!doc) {
-            var emptyRes = await resMsg.onMessage_Response(0,40400);
+            var emptyRes = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(emptyRes);
         }
         var resolved = await resolveAccountStatus(Account, doc);
@@ -402,11 +402,11 @@ exports.onMe = async function (request, response, next) {
             });
         }
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = doc;
         return response.status(200).json(resData);
     } catch (err) {
-        var resData = await resMsg.onMessage_Response(0,50000);
+        var resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -415,13 +415,13 @@ exports.onSessions = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account) {
-            var missing = await resMsg.onMessage_Response(0,40400);
+            var missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -434,11 +434,11 @@ exports.onSessions = async function (request, response, next) {
             }).filter(Boolean)
             : [];
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { sessions: sessions };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -448,7 +448,7 @@ exports.onRevokeSession = async function (request, response, next) {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         var sessionId = request.params && request.params.id ? String(request.params.id) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !sessionId || !mongo.ObjectId.isValid(sessionId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -477,11 +477,11 @@ exports.onRevokeSession = async function (request, response, next) {
             }).filter(Boolean)
             : [];
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { revoked: true, sessions: sessions };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -490,12 +490,12 @@ exports.onAccountSessions = async function (request, response, next) {
     try {
         var accountId = request.params && request.params.id ? String(request.params.id) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account) {
-            var missing = await resMsg.onMessage_Response(0,40400);
+            var missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
         var currentToken = request.headers && request.headers['x-access-token']
@@ -506,11 +506,11 @@ exports.onAccountSessions = async function (request, response, next) {
                 return sanitizeSession(item, currentToken);
             }).filter(Boolean)
             : [];
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { sessions: sessions };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -520,7 +520,7 @@ exports.onAccountRevokeSession = async function (request, response, next) {
         var accountId = request.params && request.params.id ? String(request.params.id) : null;
         var sessionId = request.params && request.params.sessionId ? String(request.params.sessionId) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !sessionId || !mongo.ObjectId.isValid(sessionId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -541,7 +541,7 @@ exports.onAccountRevokeSession = async function (request, response, next) {
 
         return exports.onAccountSessions(request, response, next);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -553,7 +553,7 @@ exports.onLogout = async function (request, response, next) {
             ? String(request.headers['x-access-token'])
             : '';
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !accessToken) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -571,11 +571,11 @@ exports.onLogout = async function (request, response, next) {
             resourceId: String(accountId)
         }, request);
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { loggedOut: true };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -584,7 +584,7 @@ exports.onLogoutAll = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -602,11 +602,11 @@ exports.onLogoutAll = async function (request, response, next) {
             resourceId: String(accountId)
         }, request);
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { loggedOutAll: true };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -614,14 +614,14 @@ exports.onLogoutAll = async function (request, response, next) {
 exports.onStatusOptions = async function (request, response, next) {
     try {
         const master = await ensureAccountStatusMasterData();
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             group: master.group,
             statuses: Object.values(master.statuses)
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -629,13 +629,13 @@ exports.onStatusOptions = async function (request, response, next) {
 exports.onGroupOptions = async function (request, response, next) {
     try {
         const docs = await accountAccess.getGroupOptions();
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             groups: docs || []
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -644,16 +644,16 @@ exports.onEffectivePermissions = async function (request, response, next) {
     try {
         const accountId = request.params && request.params.id ? request.params.id : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            const bad = await resMsg.onMessage_Response(0,40400);
+            const bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         const data = await accountAccess.getEffectivePermissions(accountId);
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = data;
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -662,7 +662,7 @@ exports.onChangeStatus = async function (request, response, next) {
     try {
         const accountId = request.params && request.params.id ? request.params.id : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            const bad = await resMsg.onMessage_Response(0,40400);
+            const bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -671,7 +671,7 @@ exports.onChangeStatus = async function (request, response, next) {
             [{ path: 'status', select: 'key title description group state' }]
         );
         if (!account) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -683,19 +683,19 @@ exports.onChangeStatus = async function (request, response, next) {
         );
 
         if (!targetKey) {
-            const invalid = await resMsg.onMessage_Response(0,40400);
+            const invalid = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(invalid);
         }
 
         const master = resolved.master || await ensureAccountStatusMasterData();
         const targetStatus = master.statuses[targetKey];
         if (!targetStatus) {
-            const invalid = await resMsg.onMessage_Response(0,40400);
+            const invalid = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(invalid);
         }
 
         if (!canTransition(currentStatus && currentStatus.key, targetKey)) {
-            const denied = await resMsg.onMessage_Response(0,40100);
+            const denied = await resMsg.onMessage_Response(0, 40100);
             denied.data = {
                 currentStatus: currentStatus || null,
                 targetStatus: targetStatus
@@ -722,11 +722,11 @@ exports.onChangeStatus = async function (request, response, next) {
             }
         }, request);
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = updated;
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -761,11 +761,11 @@ exports.onList = async function (request, response, next) {
             normalized.push(account);
         }
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = normalized;
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -775,12 +775,12 @@ exports.onLifecycleSummary = async function (request, response, next) {
         const accountId = request.params && request.params.id ? request.params.id : null;
         const account = await loadAccountForLifecycle(accountId);
         if (!account) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
         const context = await buildLifecycleContext(account.lifecycle || {}, account.lifecycle || {}, account);
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             accountId: String(account._id),
             lifecycle: context.evaluation.lifecycle,
@@ -797,7 +797,7 @@ exports.onLifecycleSummary = async function (request, response, next) {
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -807,7 +807,7 @@ exports.onUpdateLifecycle = async function (request, response, next) {
         const accountId = request.params && request.params.id ? request.params.id : null;
         const account = await loadAccountForLifecycle(accountId);
         if (!account) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -833,7 +833,7 @@ exports.onUpdateLifecycle = async function (request, response, next) {
             }
         }, request);
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             account: updated,
             lifecycle: context.evaluation.lifecycle,
@@ -851,7 +851,7 @@ exports.onUpdateLifecycle = async function (request, response, next) {
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -861,7 +861,7 @@ exports.onProvisionAccount = async function (request, response, next) {
         const accountId = request.params && request.params.id ? request.params.id : null;
         const account = await loadAccountForLifecycle(accountId);
         if (!account) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -902,7 +902,7 @@ exports.onProvisionAccount = async function (request, response, next) {
             detail: plan
         }, request);
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         const updatedContext = await buildLifecycleContext(updated.lifecycle || {}, updated.lifecycle || {}, updated);
         resData.data = {
             account: updated,
@@ -915,7 +915,7 @@ exports.onProvisionAccount = async function (request, response, next) {
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -925,7 +925,7 @@ exports.onDeprovisionAccount = async function (request, response, next) {
         const accountId = request.params && request.params.id ? request.params.id : null;
         const account = await loadAccountForLifecycle(accountId);
         if (!account) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -969,7 +969,7 @@ exports.onDeprovisionAccount = async function (request, response, next) {
             detail: plan
         }, request);
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         const updatedContext = await buildLifecycleContext(updated.lifecycle || {}, updated.lifecycle || {}, updated);
         resData.data = {
             account: updated,
@@ -982,7 +982,7 @@ exports.onDeprovisionAccount = async function (request, response, next) {
         };
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -1078,13 +1078,13 @@ exports.onUpdateAccount = async function (request, response, next) {
     try {
         const accountId = request.params && request.params.id ? request.params.id : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            const bad = await resMsg.onMessage_Response(0,40400);
+            const bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         const current = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!current) {
-            const missing = await resMsg.onMessage_Response(0,40400);
+            const missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -1165,11 +1165,11 @@ exports.onUpdateAccount = async function (request, response, next) {
             }
         }, request);
 
-        const resData = await resMsg.onMessage_Response(0,20000);
+        const resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = accountDoc;
         return response.status(200).json(resData);
     } catch (err) {
-        const resData = await resMsg.onMessage_Response(0,50000);
+        const resData = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(resData);
     }
 };
@@ -1178,14 +1178,14 @@ exports.onTwoFaRequest = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         var query = { _id: new mongo.ObjectId(accountId) };
         var account = await Account.onQuery(query);
         if (!account) {
-            var missingAccount = await resMsg.onMessage_Response(0,40400);
+            var missingAccount = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missingAccount);
         }
 
@@ -1197,7 +1197,7 @@ exports.onTwoFaRequest = async function (request, response, next) {
             targetEmail = authenEmail ? authenEmail.email : null;
         }
         if (!targetEmail) {
-            var noEmail = await resMsg.onMessage_Response(0,40400);
+            var noEmail = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(noEmail);
         }
 
@@ -1212,7 +1212,7 @@ exports.onTwoFaRequest = async function (request, response, next) {
             })
             : null;
         if (existed && existed.dateTime && ((new Date(existed.dateTime).getTime() + cooldownMs) > now.getTime())) {
-            var cooldownRes = await resMsg.onMessage_Response(0,20000);
+            var cooldownRes = await resMsg.onMessage_Response(0, 20000);
             cooldownRes.data = {
                 channel: 'email',
                 expiresAt: existed.expired,
@@ -1235,7 +1235,7 @@ exports.onTwoFaRequest = async function (request, response, next) {
                 expiresMinutes: 5
             });
             if (!mailResult || !mailResult.success) {
-                var mailErr = await resMsg.onMessage_Response(0,50000);
+                var mailErr = await resMsg.onMessage_Response(0, 50000);
                 return response.status(500).json(mailErr);
             }
             mailSent = true;
@@ -1274,7 +1274,7 @@ exports.onTwoFaRequest = async function (request, response, next) {
             }
         }, request);
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             channel: 'email',
             expiresAt: expiresAt,
@@ -1285,7 +1285,7 @@ exports.onTwoFaRequest = async function (request, response, next) {
         }
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1295,13 +1295,13 @@ exports.onTwoFaVerify = async function (request, response, next) {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         var code = request.body && request.body.code ? String(request.body.code).trim() : '';
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !code) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account || !Array.isArray(account.verification)) {
-            var notFound = await resMsg.onMessage_Response(0,40400);
+            var notFound = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(notFound);
         }
 
@@ -1314,7 +1314,7 @@ exports.onTwoFaVerify = async function (request, response, next) {
             return new Date(item.expired) >= now;
         });
         if (!matched) {
-            var denied = await resMsg.onMessage_Response(0,40100);
+            var denied = await resMsg.onMessage_Response(0, 40100);
             return response.status(401).json(denied);
         }
 
@@ -1333,11 +1333,11 @@ exports.onTwoFaVerify = async function (request, response, next) {
             }
         }, request);
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { verified: true };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1346,7 +1346,7 @@ exports.onTrustDevice = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -1354,13 +1354,13 @@ exports.onTrustDevice = async function (request, response, next) {
             ? String(request.headers['x-access-token'])
             : '';
         if (!accessToken) {
-            var denied = await resMsg.onMessage_Response(0,40100);
+            var denied = await resMsg.onMessage_Response(0, 40100);
             return response.status(401).json(denied);
         }
 
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account || !account.control || !Array.isArray(account.control.device)) {
-            var missing = await resMsg.onMessage_Response(0,40400);
+            var missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -1368,7 +1368,7 @@ exports.onTrustDevice = async function (request, response, next) {
             return item && String(item.xAccessToken || '') === accessToken;
         });
         if (!activeSession || !activeSession.fingerprint || !activeSession.networkKey) {
-            var invalid = await resMsg.onMessage_Response(0,40100);
+            var invalid = await resMsg.onMessage_Response(0, 40100);
             return response.status(401).json(invalid);
         }
 
@@ -1396,14 +1396,14 @@ exports.onTrustDevice = async function (request, response, next) {
             }
         }, request);
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = {
             trusted: true,
             expiresAt: trustedPayload.expiresAt
         };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1412,13 +1412,13 @@ exports.onTrustedDevices = async function (request, response, next) {
     try {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account) {
-            var missing = await resMsg.onMessage_Response(0,40400);
+            var missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -1426,11 +1426,11 @@ exports.onTrustedDevices = async function (request, response, next) {
             ? account.control.trustedDevices.map(sanitizeTrustedDevice).filter(Boolean)
             : [];
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { trustedDevices: devices };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1440,7 +1440,7 @@ exports.onRevokeTrustedDevice = async function (request, response, next) {
         var accountId = request.body && request.body.accounts ? request.body.accounts : null;
         var trustedDeviceId = request.params && request.params.id ? String(request.params.id) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !trustedDeviceId || !mongo.ObjectId.isValid(trustedDeviceId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -1464,11 +1464,11 @@ exports.onRevokeTrustedDevice = async function (request, response, next) {
             ? account.control.trustedDevices.map(sanitizeTrustedDevice).filter(Boolean)
             : [];
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { revoked: true, trustedDevices: devices };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1477,13 +1477,13 @@ exports.onAccountTrustedDevices = async function (request, response, next) {
     try {
         var accountId = request.params && request.params.id ? String(request.params.id) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
         var account = await Account.onQuery({ _id: new mongo.ObjectId(accountId) });
         if (!account) {
-            var missing = await resMsg.onMessage_Response(0,40400);
+            var missing = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(missing);
         }
 
@@ -1491,11 +1491,11 @@ exports.onAccountTrustedDevices = async function (request, response, next) {
             ? account.control.trustedDevices.map(sanitizeTrustedDevice).filter(Boolean)
             : [];
 
-        var resData = await resMsg.onMessage_Response(0,20000);
+        var resData = await resMsg.onMessage_Response(0, 20000);
         resData.data = { trustedDevices: devices };
         return response.status(200).json(resData);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1505,7 +1505,7 @@ exports.onAccountRevokeTrustedDevice = async function (request, response, next) 
         var accountId = request.params && request.params.id ? String(request.params.id) : null;
         var trustedDeviceId = request.params && request.params.trustedDeviceId ? String(request.params.trustedDeviceId) : null;
         if (!accountId || !mongo.ObjectId.isValid(accountId) || !trustedDeviceId || !mongo.ObjectId.isValid(trustedDeviceId)) {
-            var bad = await resMsg.onMessage_Response(0,40400);
+            var bad = await resMsg.onMessage_Response(0, 40400);
             return response.status(404).json(bad);
         }
 
@@ -1526,7 +1526,7 @@ exports.onAccountRevokeTrustedDevice = async function (request, response, next) 
 
         return exports.onAccountTrustedDevices(request, response, next);
     } catch (err) {
-        var fail = await resMsg.onMessage_Response(0,50000);
+        var fail = await resMsg.onMessage_Response(0, 50000);
         return response.status(500).json(fail);
     }
 };
@@ -1538,8 +1538,10 @@ exports.onSignUp = async function (request, response, next) {
         const password = request.body && request.body.password ? String(request.body.password).trim() : '';
         const confirmPassword = request.body && request.body.confirmPassword ? String(request.body.confirmPassword).trim() : '';
         const licensePlate = request.body && request.body.licensePlate ? String(request.body.licensePlate).trim() : '';
+        const role = request.body && request.body.role ? String(request.body.role).trim() : 'user';
 
-        if (!username || !email || !password || !confirmPassword || !licensePlate) {
+        // For regular users, licence plate is required. For admin accounts, it's optional.
+        if (!username || !email || !password || !confirmPassword || (role === 'user' && !licensePlate)) {
             return response.status(400).json({
                 status: false,
                 message: 'All fields are required'
@@ -1578,7 +1580,8 @@ exports.onSignUp = async function (request, response, next) {
             email: email,
             username: username,
             password: password,
-            licensePlate: licensePlate,
+            licensePlate: licensePlate || null,
+            role: role,
             authen: [
                 {
                     username: email,
@@ -1591,7 +1594,8 @@ exports.onSignUp = async function (request, response, next) {
                 firstName: toLangArray(username, 'en'),
                 lastName: [],
                 image: null,
-                licensePlate: licensePlate
+                licensePlate: licensePlate || null,
+                role: role
             },
             control: {
                 sso: false,

@@ -70,15 +70,24 @@
                   </div>
                 </div>
 
-                <!-- Licence Plate -->
-                <div class="form-group mb-4">
+                <!-- Role -->
+                <div class="form-group mb-3">
+                  <label class="font-weight-bold input-label">Role:</label>
+                  <select class="form-control custom-input" v-model="role">
+                    <option value="user">User</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+
+                <!-- Licence Plate (only for users) -->
+                <div class="form-group mb-4" v-if="role === 'user'">
                   <label class="font-weight-bold input-label">Your licence plate letter:</label>
                   <input
                     type="text"
                     class="form-control custom-input"
                     placeholder="Ex. กก 4343 เชียงใหม่"
                     v-model="licensePlate"
-                    required
+                    :required="role === 'user'"
                   />
                 </div>
 
@@ -121,6 +130,7 @@ export default {
       password: '',
       confirmPassword: '',
       licensePlate: '',
+      role: 'user',
       showPassword: false,
       showConfirmPassword: false
     }
@@ -145,7 +155,8 @@ export default {
           email: this.email,
           password: this.password,
           confirmPassword: this.confirmPassword,
-          licensePlate: this.licensePlate
+          role: this.role,
+          ...(this.role === 'user' ? { licensePlate: this.licensePlate } : {})
         };
 
         const response = await Service.authenticated('register', payload);

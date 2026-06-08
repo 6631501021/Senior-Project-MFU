@@ -66,6 +66,10 @@ export default {
     },
     minimize() {
       return this.$store.state.sidebarMinimize
+    },
+    isLocalAdmin() {
+      const profile = this.$store.getters['auth/profile']
+      return !!(profile && (profile.role === 'admin' || (profile.userinfo && profile.userinfo.role === 'admin')))
     }
   },
   watch: {
@@ -109,6 +113,12 @@ export default {
     },
     hasViewPermission(item) {
       if (!item) return true
+      const path = this.normalizePermissionPath(item.to || item.route || '')
+      const isGeneralMenu = path === '/dashboard' || path === '/mfu/realtime' || path === '/mfu/records'
+      if (isGeneralMenu && this.isLocalAdmin) {
+        return true
+      }
+
       const requiresExplicitPermission = !!(item.permission && item.permission.path)
       if (!this.permissionLoaded) {
         return requiresExplicitPermission ? !this.$store.state.XAccessToken : true
@@ -118,7 +128,6 @@ export default {
 
       if (!isAdmin) {
         // Non-admin users should only see Dashboard and Records (Your Violation)
-        const path = this.normalizePermissionPath(item.to || item.route || '')
         if (path !== '/dashboard' && path !== '/mfu/records') {
           return false
         }
