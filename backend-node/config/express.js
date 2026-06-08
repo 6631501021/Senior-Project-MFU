@@ -42,6 +42,8 @@ module.exports = function () {
       app.get('/video_helmet', mfuStream.proxyHelmetStream);
       app.get('/video_moto', mfuStream.proxyMotoStream);
       app.get('/video_plate', mfuStream.proxyPlateStream);
+      app.get('/video_gate_ms_out', mfuStream.proxyRtspGateOut);
+      app.get('/video_gate_ms_in', mfuStream.proxyRtspGateIn);
 
       // Legacy API endpoint alias for PROJECT_SUMMARY compatibility (no auth, returns 10 latest records)
       const mfuVisionRecord = require('../server/Project/mfuVision/service/mfuVision_record');

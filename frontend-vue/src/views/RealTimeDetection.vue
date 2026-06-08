@@ -45,6 +45,7 @@
               :key="mod.id + '-' + mod.streamRefreshTrigger"
               @load="onStreamLoad(mod)"
               @error="onStreamError(mod)"
+              style="background: #000; width: 100%; height: 100%; object-fit: cover;"
             />
             <div v-else class="mfu-module-screen-text">CAMERA SIGNAL ACTIVE</div>
           </div>
@@ -75,37 +76,25 @@ export default {
       modules: [
         {
           id: 1,
-          emoji: '🟠',
-          name: 'Helmet Detection System',
-          nameTh: 'ตรวจจับหมวกกันน็อก',
-          cameraId: 'CAM_01_HELMET',
-          fps: '25.0',
-          latency: '14',
-          streamSrc: this.buildStreamUrl(baseUrl, '/video_helmet'),
+          emoji: '�',
+          name: 'Guardhouse Entrance – Out',
+          nameTh: 'ทางเข้าป้อมยาม MS (หันออก)',
+          cameraId: 'CAM_MS_GATE_OUT',
+          fps: '15.0',
+          latency: '200',
+          streamSrc: this.buildStreamUrl(baseUrl, '/video_gate_ms_out'),
           isLoading: true,
           streamRefreshTrigger: 0
         },
         {
           id: 2,
-          emoji: '🏍',
-          name: 'Motorcycle Tracking System',
-          nameTh: 'ติดตามรถมอเตอร์ไซค์',
-          cameraId: 'CAM_02_MOTO',
-          fps: '25.0',
-          latency: '16',
-          streamSrc: this.buildStreamUrl(baseUrl, '/video_moto'),
-          isLoading: true,
-          streamRefreshTrigger: 0
-        },
-        {
-          id: 3,
-          emoji: '🔢',
-          name: 'License Plate Recognition',
-          nameTh: 'อ่านป้ายทะเบียน',
-          cameraId: 'CAM_03_PLATE',
-          fps: '25.0',
-          latency: '22',
-          streamSrc: this.buildStreamUrl(baseUrl, '/video_plate'),
+          emoji: '🚪',
+          name: 'Guardhouse Entrance – In',
+          nameTh: 'ทางเข้าป้อมยาม MS (หันเข้า)',
+          cameraId: 'CAM_MS_GATE_IN',
+          fps: '15.0',
+          latency: '200',
+          streamSrc: this.buildStreamUrl(baseUrl, '/video_gate_ms_in'),
           isLoading: true,
           streamRefreshTrigger: 0
         }
@@ -124,6 +113,10 @@ export default {
       )
     }
   },
+  mounted() {
+    console.log('[RealTimeDetection] Component mounted. Backend Base URL:', this.backendBaseUrl)
+    console.log('[RealTimeDetection] Initial modules:', this.modules.map(m => ({ id: m.id, cameraId: m.cameraId, streamSrc: m.streamSrc })))
+  },
   methods: {
     getApiBaseUrl() {
       var configuredUrl = process.env.VUE_APP_API_BASE_URL
@@ -140,6 +133,7 @@ export default {
       return (baseUrl || '') + path
     },
     onStreamLoad(module) {
+      console.log(`[RealTimeDetection] Stream loaded successfully: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = false
       // Clear any existing reconnect interval
       if (this.streamReconnectIntervals[module.id]) {
@@ -148,10 +142,12 @@ export default {
       }
     },
     onStreamError(module) {
+      console.warn(`[RealTimeDetection] Stream failed to load: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = true
       // Set up automatic reconnection
       if (!this.streamReconnectIntervals[module.id]) {
         this.streamReconnectIntervals[module.id] = setInterval(() => {
+          console.log(`[RealTimeDetection] Retrying stream ${module.cameraId} (attempt #${module.streamRefreshTrigger + 1})`)
           // Trigger re-render by updating streamRefreshTrigger
           module.streamRefreshTrigger++
         }, 3000)
