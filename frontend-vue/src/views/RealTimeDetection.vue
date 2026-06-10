@@ -173,24 +173,75 @@ export default {
       }
     },
     removeModule(id) {
+      // 1. ค้นหาชื่อโมดูลกล้องเพื่อเอามาแสดงในข้อความถามย้ำเตือน
+      const targetModule = this.modules.find(m => m.id === id);
+      const camName = targetModule ? targetModule.nameTh : 'กล้องนี้';
+
+      // 2. ใช้ confirm() ถามความสมัครใจของยูสเซอร์ก่อนลบจริง
+      const isConfirmed = confirm(`คุณต้องการลบโมดูล "${camName}" ออกจากการแสดงผลใช่หรือไม่?`);
+      
+      // ฟังก์ชันจะหยุดทำงานทันทีถ้าผู้ใช้กด "ยกเลิก" (Cancel)
+      if (!isConfirmed) return;
+
+      // หากกดยืนยัน (OK) จะทำลายท่อสตรีมและตัดลบตัวแปรตามระบบเดิม
       if (this.streamReconnectIntervals[id]) {
         clearInterval(this.streamReconnectIntervals[id])
         delete this.streamReconnectIntervals[id]
       }
       this.modules = this.modules.filter(m => m.id !== id)
+      
+      // หากกล้องที่กำลังลบอยู่เป็นตัวเดียวกับที่เปิดขยายจอใหญ่ ให้สั่งปิดจอใหญ่ลงด้วย
+      if (this.maximizedModule && this.maximizedModule.id === id) {
+        this.closeMaximizeModal();
+      }
     },
     addModule() {
+      // 1. แสดงกล่อง Prompt เพื่อให้ผู้ใช้งานป้อนที่อยู่ URL ของสตรีมภาพ
+      const inputUrl = prompt(
+        "กรุณาใส่ URL หรือ Path ของกล้องที่ต้องการเพิ่ม:\n" +
+        "(ตัวอย่างภายใน: /video_gate_ms_in หรือใส่ลิงก์สตรีมแบบเต็มรูปแบบ)"
+      );
+
+      // 2. ตรวจสอบเงื่อนไขการกรอกข้อมูล URL
+      if (inputUrl === null) return; 
+      if (!inputUrl.trim()) {
+        alert("ข้อผิดพลาด: จำเป็นต้องระบุ URL ของกล้อง ไม่สามารถปล่อยว่างได้");
+        return;
+      }
+
+      // 3. ขอให้ผู้ใช้ป้อนชื่อของกล้องในภาษาไทย
+      const inputCameraName = prompt(
+        "กรุณาใส่ชื่อของกล้องในภาษาไทย:\n" +
+        "(เช่น: กล้องที่ประตู หรือ กล้องทางเข้า ฯลฯ)"
+      );
+
+      // 4. ตรวจสอบเงื่อนไขการกรอกข้อมูล ชื่อ
+      if (inputCameraName === null) return;
+      if (!inputCameraName.trim()) {
+        alert("ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้อง ไม่สามารถปล่อยว่างได้");
+        return;
+      }
+
+      // 5. เริ่มขั้นตอนประกอบร่างสร้าง ID และผูกที่อยู่ของสตรีมกล้องตัวใหม่
       const newId = this.nextId++
+      let finalStreamUrl = inputUrl.trim();
+
+      // ถ้ายูสเซอร์กรอกแค่ Path สั้น (เช่น /video_cctv_new) ให้เอาไปต่อหลัง Base URL อัตโนมัติ
+      if (finalStreamUrl.startsWith('/')) {
+        finalStreamUrl = this.buildStreamUrl(this.backendBaseUrl, finalStreamUrl);
+      }
+
+      // 6. บันทึกก้อนข้อมูลสตรีมกล้องชุดใหม่เข้าสู่ระบบรีแอกทีฟของ Vue
       this.modules.push({
         id: newId,
         emoji: '📷',
-        name: 'New Camera Module',
-        nameTh: 'โมดูลกล้องใหม่',
-        cameraId: `CAM_0${newId}_NEW`,
-        fps: '0.0',
-        latency: '--',
-        streamSrc: '',
-        isLoading: false,
+        name: `Custom Camera Module ${newId}`,
+        nameTh: inputCameraName.trim(),
+        cameraId: `CAM_CUSTOM_0${newId}`,
+        fps: '15.0',
+        latency: '0',
+        streamSrc: finalStreamUrl,
+        isLoading: true,
         streamRefreshTrigger: 0
       })
     },
