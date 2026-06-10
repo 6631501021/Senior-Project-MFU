@@ -1,6 +1,5 @@
 <template>
   <div class="mfu-page">
-    <!-- Page Header -->
     <div class="mfu-page-header d-flex flex-wrap justify-content-between align-items-center mb-4">
       <div>
         <h1 class="mfu-page-title">AI Modular Demo</h1>
@@ -13,7 +12,6 @@
       </div>
     </div>
 
-    <!-- 3-Column CCTV Grid (Fits completely on desktop screen without scrolling) -->
     <div class="mfu-streams-column">
       <div v-for="(mod, index) in filteredModules" :key="mod.id" class="mfu-module-card">
         <div class="mfu-module-card-header">
@@ -32,6 +30,11 @@
           <div class="mfu-module-preview-stats">
             <span class="mfu-stat-badge">FPS {{ mod.fps }}</span>
             <span class="mfu-stat-badge">LATENCY {{ mod.latency }}ms</span>
+            
+            <button class="mfu-expand-btn" @click="openMaximizeModal(mod)" title="Maximize stream">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
+            </button>
+
             <button class="mfu-delete-btn" @click="removeModule(mod.id)" title="Remove module">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
@@ -53,15 +56,34 @@
       </div>
     </div>
 
-    <!-- Empty State -->
     <div v-if="filteredModules.length === 0" class="mfu-empty-state">
       <p>No modules match your search.</p>
     </div>
 
-    <!-- Add Module FAB -->
     <button class="mfu-fab" @click="addModule" title="Add camera module">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
+
+    <div v-if="maximizedModule" class="mfu-modal-overlay" @click.self="closeMaximizeModal">
+      <div class="mfu-modal-container">
+        <div class="mfu-modal-header">
+          <div class="d-flex align-items-center">
+            <span class="mfu-modal-title-emoji">{{ maximizedModule.emoji }}</span>
+            <span class="mfu-modal-title-text">{{ maximizedModule.nameTh }}</span>
+          </div>
+          <button class="mfu-modal-close-btn" @click="closeMaximizeModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="mfu-modal-body">
+          <img 
+            :src="maximizedModule.streamSrc" 
+            :alt="maximizedModule.name" 
+            class="mfu-modal-stream-img" 
+          />
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -73,10 +95,11 @@ export default {
     return {
       searchQuery: '',
       backendBaseUrl: baseUrl,
+      maximizedModule: null, // ประกาศให้เป็น Reactive Property ใน return ตรงๆ
       modules: [
         {
           id: 1,
-          emoji: '�',
+          emoji: '🚗',
           name: 'Guardhouse Entrance – Out',
           nameTh: 'ทางเข้าป้อมยาม MS (หันออก)',
           cameraId: 'CAM_MS_GATE_OUT',
@@ -115,7 +138,6 @@ export default {
   },
   mounted() {
     console.log('[RealTimeDetection] Component mounted. Backend Base URL:', this.backendBaseUrl)
-    console.log('[RealTimeDetection] Initial modules:', this.modules.map(m => ({ id: m.id, cameraId: m.cameraId, streamSrc: m.streamSrc })))
   },
   methods: {
     getApiBaseUrl() {
@@ -135,7 +157,6 @@ export default {
     onStreamLoad(module) {
       console.log(`[RealTimeDetection] Stream loaded successfully: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = false
-      // Clear any existing reconnect interval
       if (this.streamReconnectIntervals[module.id]) {
         clearInterval(this.streamReconnectIntervals[module.id])
         delete this.streamReconnectIntervals[module.id]
@@ -144,17 +165,14 @@ export default {
     onStreamError(module) {
       console.warn(`[RealTimeDetection] Stream failed to load: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = true
-      // Set up automatic reconnection
       if (!this.streamReconnectIntervals[module.id]) {
         this.streamReconnectIntervals[module.id] = setInterval(() => {
           console.log(`[RealTimeDetection] Retrying stream ${module.cameraId} (attempt #${module.streamRefreshTrigger + 1})`)
-          // Trigger re-render by updating streamRefreshTrigger
           module.streamRefreshTrigger++
         }, 3000)
       }
     },
     removeModule(id) {
-      // Clear reconnect interval if exists
       if (this.streamReconnectIntervals[id]) {
         clearInterval(this.streamReconnectIntervals[id])
         delete this.streamReconnectIntervals[id]
@@ -175,10 +193,17 @@ export default {
         isLoading: false,
         streamRefreshTrigger: 0
       })
+    },
+    openMaximizeModal(module) {
+      this.maximizedModule = module;
+      document.body.style.overflow = 'hidden';
+    },
+    closeMaximizeModal() {
+      this.maximizedModule = null;
+      document.body.style.overflow = '';
     }
   },
   beforeDestroy() {
-    // Clean up all reconnect intervals
     Object.values(this.streamReconnectIntervals).forEach(interval => clearInterval(interval))
   }
 }
@@ -236,7 +261,6 @@ export default {
   color: #94a3b8;
 }
 
-/* 3-Column CCTV Grid (Forces side-by-side display so all 3 cameras fit on desktop) */
 .mfu-streams-column {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -246,11 +270,10 @@ export default {
 
 @media (min-width: 1200px) {
   .mfu-streams-column {
-    grid-template-columns: repeat(3, 1fr); /* Exactly 3 columns side-by-side */
+    grid-template-columns: repeat(3, 1fr);
   }
 }
 
-/* Module Card */
 .mfu-module-card {
   width: 100%;
   background: #ffffff;
@@ -284,7 +307,6 @@ export default {
   margin-right: 0.25rem;
 }
 
-/* Preview Area */
 .mfu-module-preview {
   position: relative;
   background: #111827;
@@ -358,6 +380,25 @@ export default {
   font-family: monospace;
 }
 
+.mfu-expand-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border-radius: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mfu-expand-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  color: #ffffff;
+}
+
 .mfu-delete-btn {
   width: 24px;
   height: 24px;
@@ -377,7 +418,6 @@ export default {
   color: #ef4444;
 }
 
-/* Video Screen container (Compact height perfectly suited for portrait/vertical CCTV video frames without tall overflow) */
 .mfu-module-screen {
   background: linear-gradient(180deg, #1e293b 0%, #111827 100%);
   border-radius: 0.75rem;
@@ -386,14 +426,14 @@ export default {
   justify-content: center;
   overflow: hidden;
   position: relative !important;
-  height: 250px; /* Reduced compact height! fits the screen completely side-by-side */
+  height: 250px;
   width: 100%;
 }
 
 .mfu-stream-img {
   width: 100%;
   height: 100%;
-  object-fit: contain; /* Contain ensures full vertical phone video aspect fits neatly without letterbox stretch */
+  object-fit: contain;
   background: #0d1117;
 }
 
@@ -404,7 +444,6 @@ export default {
   font-weight: 600;
 }
 
-/* Empty State */
 .mfu-empty-state {
   text-align: center;
   padding: 4rem 2rem;
@@ -412,7 +451,6 @@ export default {
   font-size: 1rem;
 }
 
-/* FAB */
 .mfu-fab {
   position: fixed;
   bottom: 2rem;
@@ -436,5 +474,88 @@ export default {
   background: #991b1b;
   transform: scale(1.05);
   box-shadow: 0 6px 24px rgba(127, 29, 29, 0.5);
+}
+
+/* Modal CSS */
+.mfu-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100vh;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 2000;
+  padding: 2rem;
+}
+
+.mfu-modal-container {
+  background: #1e293b;
+  border-radius: 1rem;
+  width: 100%;
+  max-width: 1000px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.mfu-modal-header {
+  padding: 1rem 1.5rem;
+  background: #0f172a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f8fafc;
+}
+
+.mfu-modal-title-emoji {
+  font-size: 1.25rem;
+  margin-right: 0.5rem;
+}
+
+.mfu-modal-title-text {
+  font-weight: 700;
+  font-size: 1.1rem;
+  letter-spacing: -0.01em;
+}
+
+.mfu-modal-close-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.25rem;
+  border-radius: 0.375rem;
+  transition: all 0.2s ease;
+}
+
+.mfu-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  color: #f8fafc;
+}
+
+.mfu-modal-body {
+  background: #090d16;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  max-height: 75vh;
+}
+
+.mfu-modal-stream-img {
+  width: 100%;
+  height: auto;
+  max-height: 75vh;
+  object-fit: contain;
 }
 </style>
