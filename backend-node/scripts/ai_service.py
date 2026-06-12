@@ -18,6 +18,14 @@ VDO_DIR = os.path.join(BASE_DIR, "vdo")
 MODEL_DIR = os.path.join(BASE_DIR, "model")
 SNAPSHOT_DIR = os.path.join(BASE_DIR, "public", "snapshots")
 
+# Real-time Camera Stream Sources Configuration (RTSP / WebCam)
+# Configure your RTSP URLs or Webcam Indices here (e.g., "rtsp://username:password@ip:port/stream" or "0" for webcam)
+CAMERA_SOURCES = {
+    "CAM_01_HELMET": "rtsp://mfustream:Mediamfu2025@172.30.36.21:554/Streaming/Channels/102/", # RTSP Gate Out
+    "CAM_02_MOTO": "rtsp://mfustream:Mediamfu2025@172.30.36.22:554/Streaming/Channels/102/",   # RTSP Gate In
+    "CAM_03_PLATE": "0",  # Webcam (Device index 0)
+}
+
 # Ensure snapshot directory exists
 os.makedirs(SNAPSHOT_DIR, exist_ok=True)
 
@@ -44,10 +52,20 @@ if YOLO_AVAILABLE:
         YOLO_AVAILABLE = False
 
 class CameraStream(threading.Thread):
-    def __init__(self, camera_id, video_filename, fps=25):
+    def __init__(self, camera_id, camera_source, fps=25):
         super().__init__()
         self.camera_id = camera_id
-        self.video_path = os.path.join(VDO_DIR, video_filename)
+        
+        # [VDO (.mp4) Implementation - Commented out for cleanup]
+        # self.video_path = os.path.join(VDO_DIR, camera_source)
+        
+        # Real-time Stream (RTSP / WebCam) Implementation
+        # Determine if the camera_source is a WebCam index (digit) or an RTSP/Video Stream source
+        if isinstance(camera_source, str) and camera_source.isdigit():
+            self.video_source = int(camera_source)
+        else:
+            self.video_source = camera_source
+            
         self.fps = fps
         self.delay = 1.0 / fps
         self.latest_frame = None
@@ -59,37 +77,71 @@ class CameraStream(threading.Thread):
         self.record_interval = 12.0  # limit violation creation to once per 12 seconds per camera
 
     def run(self):
-        print(f"[AI Service] Starting camera thread: {self.camera_id} with video: {self.video_path}")
-        while self.running:
-            cap = cv2.VideoCapture(self.video_path)
-            if not cap.isOpened():
-                print(f"[AI Service] Error opening video file: {self.video_path}")
-                time.sleep(2)
-                continue
+        print(f"[AI Service] Starting camera thread: {self.camera_id} with source: {self.video_source}")
+        
+        # [VDO (.mp4) Loop Video Fallback Mode - Commented out for cleanup]
+        # while self.running:
+        #     cap = cv2.VideoCapture(self.video_path)
+        #     if not cap.isOpened():
+        #         print(f"[AI Service] Error opening video file: {self.video_path}")
+        #         time.sleep(2)
+        #         continue
+        #
+        #     frame_index = 0
+        #     while self.running and cap.isOpened():
+        #         start_time = time.time()
+        #         ret, frame = cap.read()
+        #         if not ret:
+        #             break  # Loop video when it ends
+        #
+        #         processed_frame = self.process_frame(frame, frame_index)
+        #         
+        #         # Encode processed frame as JPEG
+        #         ret_jpeg, jpeg_bytes = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+        #         if ret_jpeg:
+        #             self.latest_frame = jpeg_bytes.tobytes()
+        #
+        #         # Sleep to enforce constant stable FPS
+        #         elapsed = time.time() - start_time
+        #         sleep_time = self.delay - elapsed
+        #         if sleep_time > 0:
+        #             time.sleep(sleep_time)
+        #         
+        #         frame_index += 1
+        #
+        #     cap.release()
+        
+        # Real-time Stream (RTSP / WebCam) Implementation
+        cap = cv2.VideoCapture(self.video_source)
+        if not cap.isOpened():
+            print(f"[AI Service] Error opening real-time stream: {self.video_source}")
+            return
 
-            frame_index = 0
-            while self.running and cap.isOpened():
-                start_time = time.time()
-                ret, frame = cap.read()
-                if not ret:
-                    break  # Loop video when it ends
+        frame_index = 0
+        while self.running and cap.isOpened():
+            start_time = time.time()
+            ret, frame = cap.read()
+            if not ret:
+                print(f"[AI Service] Failed to retrieve frame from stream: {self.video_source}")
+                break
 
-                processed_frame = self.process_frame(frame, frame_index)
-                
-                # Encode processed frame as JPEG
-                ret_jpeg, jpeg_bytes = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
-                if ret_jpeg:
-                    self.latest_frame = jpeg_bytes.tobytes()
+            processed_frame = self.process_frame(frame, frame_index)
+            
+            # Encode processed frame as JPEG
+            ret_jpeg, jpeg_bytes = cv2.imencode('.jpg', processed_frame, [cv2.IMWRITE_JPEG_QUALITY, 80])
+            if ret_jpeg:
+                self.latest_frame = jpeg_bytes.tobytes()
 
-                # Sleep to enforce constant stable FPS
-                elapsed = time.time() - start_time
-                sleep_time = self.delay - elapsed
-                if sleep_time > 0:
-                    time.sleep(sleep_time)
-                
-                frame_index += 1
+            # Maintain stable target frame rate
+            elapsed = time.time() - start_time
+            sleep_time = self.delay - elapsed
+            if sleep_time > 0:
+                time.sleep(sleep_time)
+            
+            frame_index += 1
 
-            cap.release()
+        cap.release()
+        print(f"[AI Service] Thread stopped for camera: {self.camera_id}")
 
     def process_frame(self, frame, frame_index):
         h, w, _ = frame.shape
@@ -315,16 +367,16 @@ class CameraStream(threading.Thread):
 # Global dictionary to keep camera threads running
 camera_streams = {}
 
-def get_or_create_stream(camera_id, video_filename):
+def get_or_create_stream(camera_id, camera_source):
     if camera_id not in camera_streams or not camera_streams[camera_id].is_alive():
-        stream = CameraStream(camera_id, video_filename)
+        stream = CameraStream(camera_id, camera_source)
         camera_streams[camera_id] = stream
         stream.start()
     return camera_streams[camera_id]
 
 # Flask stream generation wrapper
-def generate_mjpeg_stream(camera_id, video_filename):
-    stream = get_or_create_stream(camera_id, video_filename)
+def generate_mjpeg_stream(camera_id, camera_source):
+    stream = get_or_create_stream(camera_id, camera_source)
     while True:
         frame_bytes = stream.latest_frame
         if frame_bytes:
@@ -335,17 +387,32 @@ def generate_mjpeg_stream(camera_id, video_filename):
 
 @app.route('/video_helmet')
 def video_helmet():
-    return Response(generate_mjpeg_stream("CAM_01_HELMET", "all test1.mp4"),
+    # [VDO (.mp4) Stream - Commented out for cleanup]
+    # return Response(generate_mjpeg_stream("CAM_01_HELMET", "all test1.mp4"),
+    #                 mimetype='multipart/x-mixed-replace; boundary=frame')
+    
+    # Real-time RTSP/WebCam Stream
+    return Response(generate_mjpeg_stream("CAM_01_HELMET", CAMERA_SOURCES["CAM_01_HELMET"]),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/video_moto')
 def video_moto():
-    return Response(generate_mjpeg_stream("CAM_02_MOTO", "helmet test2.mp4"),
+    # [VDO (.mp4) Stream - Commented out for cleanup]
+    # return Response(generate_mjpeg_stream("CAM_02_MOTO", "helmet test2.mp4"),
+    #                 mimetype='multipart/x-mixed-replace; boundary=frame')
+    
+    # Real-time RTSP/WebCam Stream
+    return Response(generate_mjpeg_stream("CAM_02_MOTO", CAMERA_SOURCES["CAM_02_MOTO"]),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/video_plate')
 def video_plate():
-    return Response(generate_mjpeg_stream("CAM_03_PLATE", "Lisent plate test4.mp4"),
+    # [VDO (.mp4) Stream - Commented out for cleanup]
+    # return Response(generate_mjpeg_stream("CAM_03_PLATE", "Lisent plate test4.mp4"),
+    #                 mimetype='multipart/x-mixed-replace; boundary=frame')
+    
+    # Real-time RTSP/WebCam Stream
+    return Response(generate_mjpeg_stream("CAM_03_PLATE", CAMERA_SOURCES["CAM_03_PLATE"]),
                     mimetype='multipart/x-mixed-replace; boundary=frame')
 
 @app.route('/health')
