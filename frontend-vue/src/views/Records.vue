@@ -176,7 +176,9 @@ export default {
   },
   computed: {
     isAdmin() {
-      return this.canViewPath('/newsystem/registry')
+      const profile = this.$store.getters['auth/profile']
+      const role = profile?.role || (profile?.userinfo && profile.userinfo.role) || ''
+      return role === 'admin' || this.canViewPath('/newsystem/registry')
     },
     totalPages() {
       return Math.ceil(this.totalRecords / this.perPage) || 1

@@ -259,5 +259,6 @@ module.exports = {
   
   // ปรับเปลี่ยนพาสเวิร์ดพิมพ์เล็กตัว m และเติมรหัสซับสตรีมต่อท้ายระบบดึงภาพ (ใส่ตามแชนแนลที่คุณเปิดใน VLC แล้วติดจริง)
   proxyRtspGateOut: createRtspMjpegHandler('rtsp://mfustream:Mediamfu2025@172.30.36.21:554/Streaming/Channels/102/'), 
-  proxyRtspGateIn: createRtspMjpegHandler('rtsp://mfustream:Mediamfu2025@172.30.36.22:554/Streaming/Channels/102/')
+  proxyRtspGateIn: createRtspMjpegHandler('rtsp://mfustream:Mediamfu2025@172.30.36.22:554/Streaming/Channels/102/'),
+  createDynamicRtspHandler: createRtspMjpegHandler
 };

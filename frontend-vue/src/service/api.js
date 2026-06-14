@@ -704,6 +704,12 @@ export default {
         return instance.delete(`/api/v1/mfu/records/${data && (data.id || data._id)}`);
       case 'seed-demo':
         return instance.post('/api/v1/mfu/records/seed-demo', data || {});
+      case 'cameras':
+        return instance.get('/api/v1/mfu/cameras');
+      case 'create-camera':
+        return instance.post('/api/v1/mfu/cameras', data || {});
+      case 'delete-camera':
+        return instance.delete(`/api/v1/mfu/cameras/${data && (data.id || data._id || data.cameraId)}`);
       default:
         break;
     }

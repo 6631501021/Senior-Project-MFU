@@ -35,7 +35,7 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
             </button>
 
-            <button class="mfu-delete-btn" @click="removeModule(mod.id)" title="Remove module">
+            <button v-if="isAdmin" class="mfu-delete-btn" @click="removeModule(mod.id)" title="Remove module">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
@@ -60,7 +60,7 @@
       <p>No modules match your search.</p>
     </div>
 
-    <button class="mfu-fab" @click="addModule" title="Add camera module">
+    <button v-if="isAdmin" class="mfu-fab" @click="addModule" title="Add camera module">
       <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
     </button>
 
@@ -84,49 +84,90 @@
         </div>
       </div>
     </div>
+
+    <!-- Add Camera Modal -->
+    <div v-if="showAddCameraModal" class="mfu-modal-overlay" @click.self="closeAddCameraModal">
+      <div class="mfu-modal-container mfu-add-camera-container">
+        <div class="mfu-modal-header">
+          <div class="d-flex align-items-center">
+            <span class="mfu-modal-title-emoji">🎥</span>
+            <span class="mfu-modal-title-text">เพิ่มกล้องวงจรปิดในระบบ</span>
+          </div>
+          <button class="mfu-modal-close-btn" @click="closeAddCameraModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="mfu-modal-body p-4 bg-slate-900 text-white">
+          <form @submit.prevent="submitAddCamera" class="w-100 mfu-form">
+            <div class="form-group mb-3">
+              <label class="form-label text-light small mb-1">ชื่อกล้อง / สถานที่ติดตั้ง (Location)*</label>
+              <input 
+                type="text" 
+                v-model="newCamera.location" 
+                placeholder="เช่น ทางเข้าป้อมยาม MS (หันออก)" 
+                class="form-control mfu-input" 
+                required 
+              />
+            </div>
+            <div class="form-group mb-3">
+              <label class="form-label text-light small mb-1">IP Address ของกล้อง (IP Address)</label>
+              <input 
+                type="text" 
+                v-model="newCamera.ipAddress" 
+                placeholder="เช่น 172.30.36.21" 
+                class="form-control mfu-input"
+              />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label text-light small mb-1">พาธของสตรีมวิดีโอ (Stream Path / URL)*</label>
+              <input 
+                type="text" 
+                v-model="newCamera.streamPath" 
+                placeholder="เช่น /Streaming/Channels/102/ หรือ /video_gate_ms_out" 
+                class="form-control mfu-input" 
+                required 
+              />
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary mfu-cancel-btn" @click="closeAddCameraModal">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary mfu-submit-btn">บันทึกกล้อง</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script>
+import api from '@/service/api'
+import securityAccess from '@/projects/mixins/securityAccess'
+
 export default {
   name: 'RealTimeDetection',
+  mixins: [securityAccess],
   data() {
     var baseUrl = this.getApiBaseUrl()
     return {
       searchQuery: '',
       backendBaseUrl: baseUrl,
-      maximizedModule: null, // ประกาศให้เป็น Reactive Property ใน return ตรงๆ
-      modules: [
-        {
-          id: 1,
-          emoji: '🚗',
-          name: 'Guardhouse Entrance – Out',
-          nameTh: 'ทางเข้าป้อมยาม MS (หันออก)',
-          cameraId: 'CAM_MS_GATE_OUT',
-          fps: '15.0',
-          latency: '200',
-          streamSrc: this.buildStreamUrl(baseUrl, '/video_gate_ms_out'),
-          isLoading: true,
-          streamRefreshTrigger: 0
-        },
-        {
-          id: 2,
-          emoji: '🚪',
-          name: 'Guardhouse Entrance – In',
-          nameTh: 'ทางเข้าป้อมยาม MS (หันเข้า)',
-          cameraId: 'CAM_MS_GATE_IN',
-          fps: '15.0',
-          latency: '200',
-          streamSrc: this.buildStreamUrl(baseUrl, '/video_gate_ms_in'),
-          isLoading: true,
-          streamRefreshTrigger: 0
-        }
-      ],
-      nextId: 4,
-      streamReconnectIntervals: {}
+      maximizedModule: null,
+      modules: [],
+      streamReconnectIntervals: {},
+      showAddCameraModal: false,
+      newCamera: {
+        location: '',
+        ipAddress: '',
+        streamPath: ''
+      }
     }
   },
   computed: {
+    isAdmin() {
+      const profile = this.$store.getters['auth/profile']
+      const role = profile?.role || (profile?.userinfo && profile.userinfo.role) || ''
+      return role === 'admin' || this.canViewPath('/newsystem/registry')
+    },
     filteredModules() {
       if (!this.searchQuery.trim()) return this.modules
       const q = this.searchQuery.toLowerCase()
@@ -138,8 +179,69 @@ export default {
   },
   mounted() {
     console.log('[RealTimeDetection] Component mounted. Backend Base URL:', this.backendBaseUrl)
+    this.fetchCameras()
   },
   methods: {
+    async fetchCameras() {
+      try {
+        const res = await api.mfuVision('cameras')
+        if (res && res.data && res.data.data) {
+          const cams = res.data.data
+          this.modules = cams.map((c) => {
+            let finalStreamUrl = '';
+            
+            // Stream dynamically via GET /api/v1/mfu/cameras/:id/stream
+            finalStreamUrl = this.buildStreamUrl(this.backendBaseUrl, `/api/v1/mfu/cameras/${c.cameraId}/stream`);
+            
+            let emoji = '📷';
+            const locLower = String(c.location).toLowerCase();
+            if (locLower.includes('entrance') || locLower.includes('ทางเข้า') || locLower.includes('gate')) {
+              emoji = locLower.includes('out') || locLower.includes('ออก') ? '🚗' : '🚪';
+            }
+            return {
+              id: c.cameraId,
+              emoji: emoji,
+              name: c.location,
+              nameTh: c.location,
+              cameraId: `CAM_ID_0${c.cameraId}`,
+              fps: '15.0',
+              latency: '200',
+              streamSrc: finalStreamUrl,
+              isLoading: true,
+              streamRefreshTrigger: 0
+            }
+          });
+        }
+      } catch (err) {
+        console.error('Failed to load cameras, using local fallback:', err)
+        this.modules = [
+          {
+            id: 1,
+            emoji: '🚗',
+            name: 'Guardhouse Entrance – Out',
+            nameTh: 'ทางเข้าป้อมยาม MS (หันออก)',
+            cameraId: 'CAM_MS_GATE_OUT',
+            fps: '15.0',
+            latency: '200',
+            streamSrc: this.buildStreamUrl(this.backendBaseUrl, '/video_gate_ms_out'),
+            isLoading: true,
+            streamRefreshTrigger: 0
+          },
+          {
+            id: 2,
+            emoji: '🚪',
+            name: 'Guardhouse Entrance – In',
+            nameTh: 'ทางเข้าป้อมยาม MS (หันเข้า)',
+            cameraId: 'CAM_MS_GATE_IN',
+            fps: '15.0',
+            latency: '200',
+            streamSrc: this.buildStreamUrl(this.backendBaseUrl, '/video_gate_ms_in'),
+            isLoading: true,
+            streamRefreshTrigger: 0
+          }
+        ]
+      }
+    },
     getApiBaseUrl() {
       var configuredUrl = process.env.VUE_APP_API_BASE_URL
       if (configuredUrl && configuredUrl !== '/') {
@@ -172,78 +274,56 @@ export default {
         }, 3000)
       }
     },
-    removeModule(id) {
-      // 1. ค้นหาชื่อโมดูลกล้องเพื่อเอามาแสดงในข้อความถามย้ำเตือน
+    async removeModule(id) {
       const targetModule = this.modules.find(m => m.id === id);
       const camName = targetModule ? targetModule.nameTh : 'กล้องนี้';
 
-      // 2. ใช้ confirm() ถามความสมัครใจของยูสเซอร์ก่อนลบจริง
-      const isConfirmed = confirm(`คุณต้องการลบโมดูล "${camName}" ออกจากการแสดงผลใช่หรือไม่?`);
-      
-      // ฟังก์ชันจะหยุดทำงานทันทีถ้าผู้ใช้กด "ยกเลิก" (Cancel)
+      const isConfirmed = confirm(`คุณต้องการลบกล้อง "${camName}" ออกจากระบบ PostgreSQL ใช่หรือไม่?`);
       if (!isConfirmed) return;
 
-      // หากกดยืนยัน (OK) จะทำลายท่อสตรีมและตัดลบตัวแปรตามระบบเดิม
-      if (this.streamReconnectIntervals[id]) {
-        clearInterval(this.streamReconnectIntervals[id])
-        delete this.streamReconnectIntervals[id]
-      }
-      this.modules = this.modules.filter(m => m.id !== id)
-      
-      // หากกล้องที่กำลังลบอยู่เป็นตัวเดียวกับที่เปิดขยายจอใหญ่ ให้สั่งปิดจอใหญ่ลงด้วย
-      if (this.maximizedModule && this.maximizedModule.id === id) {
-        this.closeMaximizeModal();
+      try {
+        await api.mfuVision('delete-camera', { id })
+        if (this.streamReconnectIntervals[id]) {
+          clearInterval(this.streamReconnectIntervals[id])
+          delete this.streamReconnectIntervals[id]
+        }
+        if (this.maximizedModule && this.maximizedModule.id === id) {
+          this.closeMaximizeModal();
+        }
+        await this.fetchCameras()
+      } catch (err) {
+        alert('Failed to delete camera: ' + (err.response?.data?.message || err.message))
       }
     },
     addModule() {
-      // 1. แสดงกล่อง Prompt เพื่อให้ผู้ใช้งานป้อนที่อยู่ URL ของสตรีมภาพ
-      const inputUrl = prompt(
-        "กรุณาใส่ URL หรือ Path ของกล้องที่ต้องการเพิ่ม:\n" +
-        "(ตัวอย่างภายใน: /video_gate_ms_in หรือใส่ลิงก์สตรีมแบบเต็มรูปแบบ)"
-      );
-
-      // 2. ตรวจสอบเงื่อนไขการกรอกข้อมูล URL
-      if (inputUrl === null) return; 
-      if (!inputUrl.trim()) {
-        alert("ข้อผิดพลาด: จำเป็นต้องระบุ URL ของกล้อง ไม่สามารถปล่อยว่างได้");
-        return;
+      this.showAddCameraModal = true
+      this.newCamera = {
+        location: '',
+        ipAddress: '',
+        streamPath: ''
       }
-
-      // 3. ขอให้ผู้ใช้ป้อนชื่อของกล้องในภาษาไทย
-      const inputCameraName = prompt(
-        "กรุณาใส่ชื่อของกล้องในภาษาไทย:\n" +
-        "(เช่น: กล้องที่ประตู หรือ กล้องทางเข้า ฯลฯ)"
-      );
-
-      // 4. ตรวจสอบเงื่อนไขการกรอกข้อมูล ชื่อ
-      if (inputCameraName === null) return;
-      if (!inputCameraName.trim()) {
-        alert("ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้อง ไม่สามารถปล่อยว่างได้");
-        return;
+      document.body.style.overflow = 'hidden'
+    },
+    closeAddCameraModal() {
+      this.showAddCameraModal = false
+      document.body.style.overflow = ''
+    },
+    async submitAddCamera() {
+      if (!this.newCamera.location.trim() || !this.newCamera.streamPath.trim()) {
+        alert('ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้องและพาธสตรีม')
+        return
       }
-
-      // 5. เริ่มขั้นตอนประกอบร่างสร้าง ID และผูกที่อยู่ของสตรีมกล้องตัวใหม่
-      const newId = this.nextId++
-      let finalStreamUrl = inputUrl.trim();
-
-      // ถ้ายูสเซอร์กรอกแค่ Path สั้น (เช่น /video_cctv_new) ให้เอาไปต่อหลัง Base URL อัตโนมัติ
-      if (finalStreamUrl.startsWith('/')) {
-        finalStreamUrl = this.buildStreamUrl(this.backendBaseUrl, finalStreamUrl);
+      try {
+        await api.mfuVision('create-camera', {
+          location: this.newCamera.location.trim(),
+          ip_address: this.newCamera.ipAddress.trim() || null,
+          stream_path: this.newCamera.streamPath.trim()
+        })
+        this.closeAddCameraModal()
+        await this.fetchCameras()
+      } catch (err) {
+        alert('Failed to add camera: ' + (err.response?.data?.message || err.message))
       }
-
-      // 6. บันทึกก้อนข้อมูลสตรีมกล้องชุดใหม่เข้าสู่ระบบรีแอกทีฟของ Vue
-      this.modules.push({
-        id: newId,
-        emoji: '📷',
-        name: `Custom Camera Module ${newId}`,
-        nameTh: inputCameraName.trim(),
-        cameraId: `CAM_CUSTOM_0${newId}`,
-        fps: '15.0',
-        latency: '0',
-        streamSrc: finalStreamUrl,
-        isLoading: true,
-        streamRefreshTrigger: 0
-      })
     },
     openMaximizeModal(module) {
       this.maximizedModule = module;
@@ -608,5 +688,61 @@ export default {
   height: auto;
   max-height: 75vh;
   object-fit: contain;
+}
+
+.mfu-add-camera-container {
+  max-width: 500px;
+}
+
+.mfu-form {
+  padding: 1rem 1.5rem;
+  width: 100%;
+}
+
+.mfu-input {
+  background: #0f172a;
+  border: 1px solid #334155;
+  color: #f8fafc;
+  border-radius: 0.5rem;
+  padding: 0.6rem 0.8rem;
+  transition: all 0.2s ease;
+  width: 100%;
+}
+
+.mfu-input:focus {
+  border-color: #991b1b;
+  box-shadow: 0 0 0 3px rgba(153, 27, 27, 0.25);
+  background: #0f172a;
+  color: #ffffff;
+}
+
+.mfu-cancel-btn {
+  background: #334155;
+  border: none;
+  color: #f8fafc;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.mfu-cancel-btn:hover {
+  background: #475569;
+}
+
+.mfu-submit-btn {
+  background: #7f1d1d;
+  border: none;
+  color: #ffffff;
+  padding: 0.5rem 1.25rem;
+  border-radius: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: background 0.2s;
+}
+
+.mfu-submit-btn:hover {
+  background: #991b1b;
 }
 </style>

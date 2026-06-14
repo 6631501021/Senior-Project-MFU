@@ -201,7 +201,9 @@ export default {
   },
   computed: {
     isAdmin() {
-      return this.canViewPath('/newsystem/registry')
+      const profile = this.$store.getters['auth/profile']
+      const role = profile?.role || (profile?.userinfo && profile.userinfo.role) || ''
+      return role === 'admin' || this.canViewPath('/newsystem/registry')
     },
     recordId() {
       return this.$route.params.id || '0000'

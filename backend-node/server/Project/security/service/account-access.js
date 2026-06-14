@@ -520,6 +520,25 @@ async function evaluatePermission(accountId, paths, action, options) {
   const newSystemAccount = await findNewSystemAccountById(accountId);
   const isLocal = !!(newSystemAccount && newSystemAccount.control && newSystemAccount.control.sso === false);
 
+  if (newSystemAccount) {
+    const role = newSystemAccount.role || (newSystemAccount.userinfo && newSystemAccount.userinfo.role);
+    if (role === 'admin') {
+      return {
+        allowed: true,
+        matchedPath: candidates[0] || '',
+        permissionData: {
+          accountId: accountId,
+          assignments: [],
+          permissions: [],
+          matrix: {},
+          effectivePermissions: [],
+          source: isLocal ? 'local' : 'iam'
+        },
+        source: isLocal ? 'local' : 'iam'
+      };
+    }
+  }
+
   let iamEvaluated = false;
   let lastIamData = null;
 
