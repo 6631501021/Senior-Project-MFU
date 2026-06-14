@@ -1,0 +1,67 @@
+// Prisma schema — introspected from PostgreSQL "nhelmet" database
+// Managed via pgAdmin 4.  DO NOT run `prisma migrate` against this DB;
+// use pgAdmin or raw SQL for DDL changes.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// ============================================================
+// 1. Camera — กล้องวงจรปิดทั้งหมดในระบบ
+// ============================================================
+model Camera {
+  cameraId    Int         @id @default(autoincrement()) @map("camera_id")
+  location    String      @db.VarChar(255)
+  ipAddress   String?     @map("ip_address") @db.VarChar(50)
+  status      String?     @default("active") @db.VarChar(50)
+  installedAt DateTime?   @default(now()) @map("installed_at") @db.Timestamp(6)
+  streamPath  String?     @map("stream_path") @db.VarChar(255)
+
+  violations  Violation[]
+
+  @@map("cameras")
+}
+
+// ============================================================
+// 2. Violation — บันทึกการตรวจจับ (Core Table)
+// ============================================================
+model Violation {
+  violationId     Int       @id @default(autoincrement()) @map("violation_id")
+  cameraId        Int?      @map("camera_id")
+  licensePlate    String?   @map("license_plate") @db.VarChar(50)
+  violationsType  String?   @default("Non-Helmet") @map("violations_type") @db.VarChar(100)
+  imagePath       String    @map("image_path") @db.VarChar(255)
+  confidenceScore Float     @map("confidence_score")
+  occurredAt      DateTime? @default(now()) @map("occurred_at") @db.Timestamp(6)
+
+  camera          Camera?   @relation(fields: [cameraId], references: [cameraId], onUpdate: NoAction)
+
+  @@map("violations")
+}
+
+// ============================================================
+// 3. Administrator — ผู้ดูแลระบบ
+// ============================================================
+model Administrator {
+  adminId  Int    @id @default(autoincrement()) @map("admin_id")
+  username String @unique @db.VarChar(50)
+  password String @db.VarChar(255)
+
+  @@map("administrators")
+}
+
+// ============================================================
+// 4. Register — ข้อมูลผู้ขับขี่ที่ลงทะเบียน
+// ============================================================
+model Register {
+  riderId      Int     @id @default(autoincrement()) @map("rider_id")
+  name         String  @db.VarChar(255)
+  licensePlate String? @unique @map("license_plate") @db.VarChar(50)
+  licenseInfo  String? @map("license_info")
+
+  @@map("register")
+}

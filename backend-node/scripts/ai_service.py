@@ -306,22 +306,12 @@ class CameraStream(threading.Thread):
 
         # Send HTTP POST to Node.js API
         payload = {
-            "plate_number": "1กก 8822 เชียงราย" if self.camera_id == "CAM_03_PLATE" else "Unknown",
+            "license_plate": "1กก 8822 เชียงราย" if self.camera_id == "CAM_03_PLATE" else None,
             "timestamp": datetime.now().isoformat(),
-            "location": location,
-            "camera_id": self.camera_id,
-            "violation_type": violation_type,
-            "image_url": f"/snapshots/{filename}",  # Static route mapped directly in Express!
-            "plate_image_url": f"/snapshots/{filename}",
-            "confidence": 0.95,
-            "status": "pending",
-            "reviewer": "",
-            "review_note": "",
-            "ai_metadata": {
-                "engine": "YOLOv8-Local" if YOLO_AVAILABLE else "High-Fidelity Fallback Processor",
-                "fps": 25.0,
-                "latency_ms": 14
-            }
+            "camera_id": 1 if self.camera_id == "CAM_01_HELMET" else (2 if self.camera_id == "CAM_02_MOTO" else 3),
+            "violations_type": violation_type if violation_type else "Non-Helmet",
+            "image_path": f"/snapshots/{filename}",
+            "confidence_score": 0.95,
         }
 
         # Fire post request in a background thread to prevent blocking camera loop

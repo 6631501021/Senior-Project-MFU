@@ -5,6 +5,7 @@ var https = require('https');
 var fs = require('fs');
 var cfg = require('./config/config');
 var mongoose = require('mongoose');
+var prisma = require('./lib/prisma');
 var runtimeAccessSettings = require('./helpers/runtime-access-settings');
 var runtimeAccessMonitor = require('./helpers/runtime-access-monitor');
 /**
@@ -91,6 +92,10 @@ const shutdown = () => {
             await mongoose.connection.close();
             console.log('Closed MongoDB connection');
         }
+
+        // Disconnect Prisma (PostgreSQL)
+        await prisma.$disconnect();
+        console.log('Closed PostgreSQL connection (Prisma)');
 
         process.exit(0); // Exit process
     });

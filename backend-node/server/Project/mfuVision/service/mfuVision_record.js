@@ -1,52 +1,72 @@
 'use strict';
 
-const MfuVisionRecord = require('../models/mfuVision_record.model');
+const prisma = require('../../../../lib/prisma');
 
 /**
  * List records with pagination and filters.
- * @param {Object} query - { page, limit, location, violation_type, status, from, to, plate_number, sort }
+ * @param {Object} query - { page, limit, location, violation_type, from, to, license_plate, sort }
  */
 async function list(query) {
-  const page = Math.max(parseInt(query.page, 10) || 1, 1);
-  const limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
-  const skip = (page - 1) * limit;
+  var page = Math.max(parseInt(query.page, 10) || 1, 1);
+  var limit = Math.min(Math.max(parseInt(query.limit, 10) || 20, 1), 100);
+  var skip = (page - 1) * limit;
 
-  const filter = {};
+  var where = {};
 
+  // Filter by camera location (through camera relation)
   if (query.location) {
-    filter.location = { $regex: query.location, $options: 'i' };
+    where.camera = {
+      location: { contains: query.location, mode: 'insensitive' }
+    };
   }
   if (query.violation_type) {
-    filter.violation_type = String(query.violation_type).trim();
+    where.violationsType = String(query.violation_type).trim();
   }
-  if (query.status) {
-    filter.status = String(query.status).trim();
-  }
-  if (query.plate_number) {
-    filter.plate_number = { $regex: query.plate_number, $options: 'i' };
+  // license_plate filter (nhelmet uses license_plate instead of plate_number)
+  if (query.plate_number || query.license_plate) {
+    var plateVal = query.plate_number || query.license_plate;
+    where.licensePlate = { contains: plateVal, mode: 'insensitive' };
   }
   if (query.camera_id) {
-    filter.camera_id = String(query.camera_id).trim();
+    var camId = parseInt(query.camera_id, 10);
+    if (!isNaN(camId)) {
+      where.cameraId = camId;
+    }
   }
 
   // Date range filter
   if (query.from || query.to) {
-    filter.timestamp = {};
+    where.occurredAt = {};
     if (query.from) {
-      filter.timestamp.$gte = new Date(query.from);
+      where.occurredAt.gte = new Date(query.from);
     }
     if (query.to) {
-      filter.timestamp.$lte = new Date(query.to);
+      where.occurredAt.lte = new Date(query.to);
     }
   }
 
-  const sortField = query.sort || '-timestamp';
-  const total = await MfuVisionRecord.countDocuments(filter);
-  const records = await MfuVisionRecord.find(filter)
-    .sort(sortField)
-    .skip(skip)
-    .limit(limit)
-    .lean();
+  // Sort field
+  var orderBy = { occurredAt: 'desc' }; // default
+  if (query.sort) {
+    var sortStr = String(query.sort);
+    if (sortStr.charAt(0) === '-') {
+      orderBy = {};
+      var field = sortStr.substring(1);
+      orderBy[field === 'timestamp' ? 'occurredAt' : field] = 'desc';
+    } else {
+      orderBy = {};
+      orderBy[sortStr === 'timestamp' ? 'occurredAt' : sortStr] = 'asc';
+    }
+  }
+
+  var total = await prisma.violation.count({ where: where });
+  var records = await prisma.violation.findMany({
+    where: where,
+    orderBy: orderBy,
+    skip: skip,
+    take: limit,
+    include: { camera: true }
+  });
 
   return {
     records: records,
@@ -62,108 +82,128 @@ async function list(query) {
 /**
  * Get aggregated statistics.
  */
-async function stats(plateNumber) {
-  const now = new Date();
+async function stats(licensePlate) {
+  var now = new Date();
 
   // Start of today (local midnight approximation in UTC)
-  const startOfToday = new Date(now);
+  var startOfToday = new Date(now);
   startOfToday.setHours(0, 0, 0, 0);
 
-  // One hour ago
-  const oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  // Time boundaries
+  var oneHourAgo = new Date(now.getTime() - 60 * 60 * 1000);
+  var oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+  var sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
+  var thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
 
-  // Build optional plate number filter
-  const filter = {};
-  if (plateNumber) {
-    filter.plate_number = { $regex: plateNumber, $options: 'i' };
+  // Build optional license plate filter
+  var baseWhere = {};
+  if (licensePlate) {
+    baseWhere.licensePlate = { contains: licensePlate, mode: 'insensitive' };
   }
 
-  const violationsToday = await MfuVisionRecord.countDocuments(Object.assign({
-    timestamp: { $gte: startOfToday }
-  }, filter));
+  var violationsToday = await prisma.violation.count({
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: startOfToday } })
+  });
 
-  const violationsLastHour = await MfuVisionRecord.countDocuments(Object.assign({
-    timestamp: { $gte: oneHourAgo }
-  }, filter));
+  var violationsLastHour = await prisma.violation.count({
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: oneHourAgo } })
+  });
 
-  const totalRecords = await MfuVisionRecord.countDocuments(filter);
+  var totalRecords = await prisma.violation.count({ where: baseWhere });
 
   // Active cameras = distinct camera_id values with records in last 24h
-  const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
-  const activeCameras = await MfuVisionRecord.distinct('camera_id', Object.assign({
-    timestamp: { $gte: oneDayAgo }
-  }, filter));
+  var activeCameraRecords = await prisma.violation.findMany({
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: oneDayAgo }, cameraId: { not: null } }),
+    distinct: ['cameraId'],
+    select: { cameraId: true }
+  });
 
-  // Detection rate: percentage of no_helmet vs total in last 7 days
-  const sevenDaysAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000);
-  const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
+  // Detection rate: percentage of Non-Helmet vs total in last 7 days
+  var totalWeek = await prisma.violation.count({
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: sevenDaysAgo } })
+  });
+  var helmetsWeek = await prisma.violation.count({
+    where: Object.assign({}, baseWhere, {
+      occurredAt: { gte: sevenDaysAgo },
+      violationsType: 'Non-Helmet'
+    })
+  });
+  var detectionRate = totalWeek > 0 ? Math.round((helmetsWeek / totalWeek) * 100) : 0;
 
-  const totalWeek = await MfuVisionRecord.countDocuments(Object.assign({
-    timestamp: { $gte: sevenDaysAgo }
-  }, filter));
-  const helmetsWeek = await MfuVisionRecord.countDocuments(Object.assign({
-    timestamp: { $gte: sevenDaysAgo },
-    violation_type: 'no_helmet'
-  }, filter));
-  const detectionRate = totalWeek > 0 ? Math.round((helmetsWeek / totalWeek) * 100) : 0;
+  var violationsWeek = totalWeek;
+  var violationsMonth = await prisma.violation.count({
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: thirtyDaysAgo } })
+  });
 
-  // New weekly and monthly total violations counts
-  const violationsWeek = totalWeek;
-  const violationsMonth = await MfuVisionRecord.countDocuments(Object.assign({
-    timestamp: { $gte: thirtyDaysAgo }
-  }, filter));
-
-  // Hourly trend for last 24 hours
-  const hourlyTrend = await MfuVisionRecord.aggregate([
-    { $match: Object.assign({ timestamp: { $gte: oneDayAgo } }, filter) },
-    {
-      $group: {
-        _id: { $hour: '$timestamp' },
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { '_id': 1 } }
-  ]);
+  // Hourly trend for last 24 hours (raw SQL)
+  var hourlyTrendQuery = licensePlate
+    ? prisma.$queryRaw`
+        SELECT EXTRACT(HOUR FROM occurred_at)::int AS "_id", COUNT(*)::int AS "count"
+        FROM violations
+        WHERE occurred_at >= ${oneDayAgo}
+          AND license_plate ILIKE ${'%' + licensePlate + '%'}
+        GROUP BY EXTRACT(HOUR FROM occurred_at)
+        ORDER BY "_id" ASC
+      `
+    : prisma.$queryRaw`
+        SELECT EXTRACT(HOUR FROM occurred_at)::int AS "_id", COUNT(*)::int AS "count"
+        FROM violations
+        WHERE occurred_at >= ${oneDayAgo}
+        GROUP BY EXTRACT(HOUR FROM occurred_at)
+        ORDER BY "_id" ASC
+      `;
+  var hourlyTrend = await hourlyTrendQuery;
 
   // Daily trend for last 7 days
-  const dailyTrend = await MfuVisionRecord.aggregate([
-    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
-    {
-      $group: {
-        _id: { $dayOfWeek: '$timestamp' },
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { '_id': 1 } }
-  ]);
+  var dailyTrendQuery = licensePlate
+    ? prisma.$queryRaw`
+        SELECT EXTRACT(DOW FROM occurred_at)::int AS "_id", COUNT(*)::int AS "count"
+        FROM violations
+        WHERE occurred_at >= ${sevenDaysAgo}
+          AND license_plate ILIKE ${'%' + licensePlate + '%'}
+        GROUP BY EXTRACT(DOW FROM occurred_at)
+        ORDER BY "_id" ASC
+      `
+    : prisma.$queryRaw`
+        SELECT EXTRACT(DOW FROM occurred_at)::int AS "_id", COUNT(*)::int AS "count"
+        FROM violations
+        WHERE occurred_at >= ${sevenDaysAgo}
+        GROUP BY EXTRACT(DOW FROM occurred_at)
+        ORDER BY "_id" ASC
+      `;
+  var dailyTrend = await dailyTrendQuery;
 
   // Violation type breakdown
-  const typeBreakdown = await MfuVisionRecord.aggregate([
-    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
-    {
-      $group: {
-        _id: '$violation_type',
-        count: { $sum: 1 }
-      }
-    },
-    { $sort: { count: -1 } }
-  ]);
+  var typeBreakdownRaw = await prisma.violation.groupBy({
+    by: ['violationsType'],
+    where: Object.assign({}, baseWhere, { occurredAt: { gte: sevenDaysAgo } }),
+    _count: { violationId: true },
+    orderBy: { _count: { violationId: 'desc' } }
+  });
+  var typeBreakdown = typeBreakdownRaw.map(function (row) {
+    return { _id: row.violationsType, count: row._count.violationId };
+  });
 
-  // Location breakdown (cross-gate analysis)
-  const locationBreakdown = await MfuVisionRecord.aggregate([
-    { $match: Object.assign({ timestamp: { $gte: sevenDaysAgo } }, filter) },
-    {
-      $group: {
-        _id: '$location',
-        total: { $sum: 1 },
-        avgConfidence: { $avg: '$confidence' },
-        noHelmet: {
-          $sum: { $cond: [{ $eq: ['$violation_type', 'no_helmet'] }, 1, 0] }
-        }
-      }
-    },
-    { $sort: { total: -1 } }
-  ]);
+  // Location breakdown — via camera relation (join cameras table)
+  var locationBreakdownRaw = await prisma.$queryRaw`
+    SELECT c.location AS "_id",
+           COUNT(*)::int AS "total",
+           AVG(v.confidence_score) AS "avgConfidence",
+           COUNT(*) FILTER (WHERE v.violations_type = 'Non-Helmet')::int AS "noHelmet"
+    FROM violations v
+    JOIN cameras c ON v.camera_id = c.camera_id
+    WHERE v.occurred_at >= ${sevenDaysAgo}
+    GROUP BY c.location
+    ORDER BY "total" DESC
+  `;
+  var locationBreakdown = locationBreakdownRaw.map(function (row) {
+    return {
+      _id: row._id,
+      total: row.total,
+      avgConfidence: parseFloat(row.avgConfidence) || 0,
+      noHelmet: row.noHelmet
+    };
+  });
 
   return {
     violations_today: violationsToday,
@@ -171,7 +211,7 @@ async function stats(plateNumber) {
     violations_week: violationsWeek,
     violations_month: violationsMonth,
     total_records: totalRecords,
-    active_cameras: activeCameras.length,
+    active_cameras: activeCameraRecords.length,
     detection_rate: detectionRate,
     hourly_trend: hourlyTrend,
     daily_trend: dailyTrend,
@@ -184,145 +224,163 @@ async function stats(plateNumber) {
  * Find a single record by ID.
  */
 async function findById(id) {
-  const record = await MfuVisionRecord.findById(id).lean();
-  if (!record) {
-    const error = new Error('Record not found');
-    error.status = 404;
+  var violationId = parseInt(id, 10);
+  if (isNaN(violationId)) {
+    var error = new Error('Invalid record ID');
+    error.status = 400;
     throw error;
+  }
+
+  var record = await prisma.violation.findUnique({
+    where: { violationId: violationId },
+    include: { camera: true }
+  });
+  if (!record) {
+    var notFoundError = new Error('Record not found');
+    notFoundError.status = 404;
+    throw notFoundError;
   }
   return record;
 }
 
 /**
  * Create a new record.
+ * Accepts field names from:
+ *   - AI service (plate_number, violation_type, image_url, confidence)
+ *   - nhelmet DB columns (license_plate, violations_type, image_path, confidence_score)
  */
 async function create(body) {
   if (!body) {
-    const error = new Error('Request body is required');
+    var error = new Error('Request body is required');
     error.status = 400;
     throw error;
   }
 
-  const data = {
-    plate_number: body.plate_number || '',
-    timestamp: body.timestamp ? new Date(body.timestamp) : new Date(),
-    location: body.location || '',
-    camera_id: body.camera_id || '',
-    violation_type: body.violation_type || 'no_helmet',
-    image_url: body.image_url || '',
-    plate_image_url: body.plate_image_url || '',
-    confidence: body.confidence != null ? Number(body.confidence) : 0,
-    status: body.status || 'pending',
-    reviewer: body.reviewer || '',
-    review_note: body.review_note || '',
-    ai_metadata: body.ai_metadata || {}
+  // Resolve camera_id (accept integer directly)
+  var cameraId = null;
+  if (body.camera_id != null) {
+    var parsed = parseInt(body.camera_id, 10);
+    if (!isNaN(parsed)) cameraId = parsed;
+  }
+
+  var data = {
+    licensePlate: body.license_plate || body.plate_number || null,
+    occurredAt: body.timestamp ? new Date(body.timestamp) : new Date(),
+    cameraId: cameraId,
+    violationsType: body.violations_type || body.violation_type || 'Non-Helmet',
+    imagePath: body.image_url || body.image_path || '',
+    confidenceScore: body.confidence != null ? Number(body.confidence) : (body.confidence_score != null ? Number(body.confidence_score) : 0),
   };
 
-  const record = new MfuVisionRecord(data);
-  return record.save();
+  return prisma.violation.create({ data: data });
 }
 
 /**
  * Update a record.
  */
 async function update(id, body) {
-  if (!id) {
-    const error = new Error('Record ID is required');
+  var violationId = parseInt(id, 10);
+  if (isNaN(violationId)) {
+    var error = new Error('Record ID is required');
     error.status = 400;
     throw error;
   }
 
-  const allowedFields = [
-    'plate_number', 'location', 'camera_id', 'violation_type',
-    'image_url', 'plate_image_url', 'confidence', 'status',
-    'reviewer', 'review_note', 'ai_metadata'
-  ];
+  // Map incoming field names to Prisma model field names (nhelmet columns)
+  var fieldMapping = {
+    license_plate: 'licensePlate',
+    plate_number: 'licensePlate',
+    camera_id: 'cameraId',
+    violations_type: 'violationsType',
+    violation_type: 'violationsType',
+    image_url: 'imagePath',
+    image_path: 'imagePath',
+    confidence: 'confidenceScore',
+    confidence_score: 'confidenceScore',
+  };
 
-  const updates = {};
-  allowedFields.forEach(function (field) {
-    if (body[field] !== undefined) {
-      updates[field] = body[field];
+  var updates = {};
+  Object.keys(fieldMapping).forEach(function (inputField) {
+    if (body[inputField] !== undefined) {
+      updates[fieldMapping[inputField]] = body[inputField];
     }
   });
 
-  const record = await MfuVisionRecord.findByIdAndUpdate(
-    id,
-    { $set: updates },
-    { new: true, runValidators: true }
-  ).lean();
-
-  if (!record) {
-    const error = new Error('Record not found');
-    error.status = 404;
-    throw error;
+  try {
+    var record = await prisma.violation.update({
+      where: { violationId: violationId },
+      data: updates,
+      include: { camera: true }
+    });
+    return record;
+  } catch (e) {
+    if (e.code === 'P2025') {
+      var notFoundError = new Error('Record not found');
+      notFoundError.status = 404;
+      throw notFoundError;
+    }
+    throw e;
   }
-  return record;
 }
 
 /**
  * Remove a record by ID.
  */
 async function remove(id) {
-  if (!id) {
-    const error = new Error('Record ID is required');
+  var violationId = parseInt(id, 10);
+  if (isNaN(violationId)) {
+    var error = new Error('Record ID is required');
     error.status = 400;
     throw error;
   }
 
-  const record = await MfuVisionRecord.findByIdAndDelete(id).lean();
-  if (!record) {
-    const error = new Error('Record not found');
-    error.status = 404;
-    throw error;
+  try {
+    await prisma.violation.delete({
+      where: { violationId: violationId }
+    });
+    return { deleted: true, id: id };
+  } catch (e) {
+    if (e.code === 'P2025') {
+      var notFoundError = new Error('Record not found');
+      notFoundError.status = 404;
+      throw notFoundError;
+    }
+    throw e;
   }
-  return { deleted: true, id: id };
 }
 
 /**
  * Seed demo data for testing purposes.
  */
 async function seedDemo() {
-  const locations = [
-    'Main Gate - IN', 'Main Gate - OUT',
-    'Dormitory Gate - IN', 'Dormitory Gate - OUT',
-    'Medical Center Gate', 'Engineering Gate'
-  ];
-  const cameras = ['CAM-001', 'CAM-002', 'CAM-003', 'CAM-004', 'CAM-005', 'CAM-006'];
-  const plates = [
+  // Get camera IDs from the cameras table so we can reference them
+  var cameras = await prisma.camera.findMany({ select: { cameraId: true } });
+  var cameraIds = cameras.map(function (c) { return c.cameraId; });
+
+  var plates = [
     '1กก-8822', '3กb-1234', 'ษร-999', '2ขค-5678',
     'กท-4455', '7มม-0011', '9บพ-3344', 'รย-7788',
     '5ศษ-2299', '1กร-6677', '4จฉ-8811', '6ทท-5522'
   ];
-  const types = ['no_helmet', 'no_helmet', 'no_helmet', 'unauthorized_entry'];
-  const statuses = ['pending', 'pending', 'approved', 'rejected'];
+  var types = ['Non-Helmet', 'Non-Helmet', 'Non-Helmet', 'unauthorized_entry'];
 
-  const records = [];
-  const now = Date.now();
+  var records = [];
+  var now = Date.now();
 
   for (var i = 0; i < 50; i++) {
     var hoursAgo = Math.floor(Math.random() * 168); // up to 7 days
     records.push({
-      plate_number: plates[Math.floor(Math.random() * plates.length)],
-      timestamp: new Date(now - hoursAgo * 60 * 60 * 1000),
-      location: locations[Math.floor(Math.random() * locations.length)],
-      camera_id: cameras[Math.floor(Math.random() * cameras.length)],
-      violation_type: types[Math.floor(Math.random() * types.length)],
-      image_url: '',
-      plate_image_url: '',
-      confidence: parseFloat((0.7 + Math.random() * 0.28).toFixed(2)),
-      status: statuses[Math.floor(Math.random() * statuses.length)],
-      reviewer: '',
-      review_note: '',
-      ai_metadata: {
-        model: 'helmet_train1(3).pt',
-        inference_time_ms: Math.floor(20 + Math.random() * 80),
-        detections: Math.floor(1 + Math.random() * 4)
-      }
+      licensePlate: plates[Math.floor(Math.random() * plates.length)],
+      occurredAt: new Date(now - hoursAgo * 60 * 60 * 1000),
+      cameraId: cameraIds.length > 0 ? cameraIds[Math.floor(Math.random() * cameraIds.length)] : null,
+      violationsType: types[Math.floor(Math.random() * types.length)],
+      imagePath: '/uploads/demo_' + i + '.jpg',
+      confidenceScore: parseFloat((0.7 + Math.random() * 0.28).toFixed(2)),
     });
   }
 
-  const result = await MfuVisionRecord.insertMany(records);
-  return { inserted: result.length };
+  var result = await prisma.violation.createMany({ data: records });
+  return { inserted: result.count };
 }
 
 module.exports = {

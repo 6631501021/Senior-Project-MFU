@@ -70,14 +70,21 @@ router.get('/records/stats', async function (request, response) {
   }
 });
 
-// Get a single record by ID
+// Get a single record by ID (PostgreSQL integer PK)
 router.get('/records/:id', async function (request, response) {
   try {
-    const record = await mfuVisionRecord.findById(request.params.id);
+    var recordId = parseInt(request.params.id, 10);
+    if (isNaN(recordId)) {
+      return response.status(400).json({
+        code: 40000,
+        message: 'Invalid record ID: must be an integer'
+      });
+    }
+    const record = await mfuVisionRecord.findById(recordId);
     const isAdmin = await checkAdmin(request);
     if (!isAdmin) {
       const userPlate = request.authAccount.licensePlate || (request.authAccount.userinfo && request.authAccount.userinfo.licensePlate) || '';
-      const recordPlate = record.plate_number || '';
+      const recordPlate = record.licensePlate || record.license_plate || '';
       if (!userPlate || String(recordPlate).toLowerCase().trim() !== String(userPlate).toLowerCase().trim()) {
         return response.status(403).json({
           code: 40300,
@@ -91,9 +98,16 @@ router.get('/records/:id', async function (request, response) {
   }
 });
 
-// Update a record (approve/reject/edit)
+// Update a record (approve/reject/edit) — PostgreSQL integer PK
 router.put('/records/:id', async function (request, response) {
   try {
+    var recordId = parseInt(request.params.id, 10);
+    if (isNaN(recordId)) {
+      return response.status(400).json({
+        code: 40000,
+        message: 'Invalid record ID: must be an integer'
+      });
+    }
     const isAdmin = await checkAdmin(request);
     if (!isAdmin) {
       return response.status(403).json({
@@ -101,15 +115,22 @@ router.put('/records/:id', async function (request, response) {
         message: 'Forbidden: Regular users cannot edit records'
       });
     }
-    return ok(response, await mfuVisionRecord.update(request.params.id, request.body || {}));
+    return ok(response, await mfuVisionRecord.update(recordId, request.body || {}));
   } catch (error) {
     return fail(response, error);
   }
 });
 
-// Delete a record
+// Delete a record — PostgreSQL integer PK
 router.delete('/records/:id', async function (request, response) {
   try {
+    var recordId = parseInt(request.params.id, 10);
+    if (isNaN(recordId)) {
+      return response.status(400).json({
+        code: 40000,
+        message: 'Invalid record ID: must be an integer'
+      });
+    }
     const isAdmin = await checkAdmin(request);
     if (!isAdmin) {
       return response.status(403).json({
@@ -117,7 +138,7 @@ router.delete('/records/:id', async function (request, response) {
         message: 'Forbidden: Regular users cannot delete records'
       });
     }
-    return ok(response, await mfuVisionRecord.remove(request.params.id));
+    return ok(response, await mfuVisionRecord.remove(recordId));
   } catch (error) {
     return fail(response, error);
   }

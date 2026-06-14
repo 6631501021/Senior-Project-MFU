@@ -65,14 +65,26 @@ module.exports = function () {
 
       // Health check endpoint
       const mongoose = require('mongoose');
-      app.get('/health', function (req, res) {
+      const prismaHealth = require('../lib/prisma');
+      app.get('/health', async function (req, res) {
         const dbState = mongoose.connection.readyState;
-        const dbStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
-        const healthy = dbState === 1;
+        const mongoStatus = dbState === 1 ? 'connected' : dbState === 2 ? 'connecting' : 'disconnected';
+
+        // Check PostgreSQL (nhelmet) via Prisma
+        let pgStatus = 'disconnected';
+        try {
+          await prismaHealth.$queryRaw`SELECT 1`;
+          pgStatus = 'connected';
+        } catch (e) {
+          pgStatus = 'error: ' + (e.message || 'unknown');
+        }
+
+        const healthy = dbState === 1 && pgStatus === 'connected';
         res.status(healthy ? 200 : 503).json({
           status: healthy ? 'ok' : 'degraded',
           uptime: process.uptime(),
-          database: dbStatus,
+          mongodb: mongoStatus,
+          postgresql_nhelmet: pgStatus,
           timestamp: new Date().toISOString()
         });
       });
