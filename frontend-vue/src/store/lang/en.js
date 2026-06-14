@@ -54,6 +54,12 @@ const en = {
         }
     },
     auth: {
+        logoutConfirm: {
+            title: "Confirm Logout",
+            message: "Are you sure you want to log out?",
+            confirmText: "Logout",
+            cancelText: "Cancel"
+        },
         errors: {
             title: "Authentication Error"
         },

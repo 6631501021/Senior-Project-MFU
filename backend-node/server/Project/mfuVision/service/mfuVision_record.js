@@ -3,6 +3,64 @@
 const prisma = require('../../../../lib/prisma');
 
 /**
+ * Maps PostgreSQL Prisma Violation object to legacy Mongo-compatible object
+ * so that frontend views (e.g. timestamp, violation_type, image_url) work out of the box.
+ */
+function formatToTimezoneLessISO(date) {
+  if (!date) return null;
+  if (date instanceof Date) {
+    try {
+      return date.toISOString().slice(0, -1);
+    } catch (e) {
+      return date;
+    }
+  }
+  return date;
+}
+
+function mapViolationToLegacy(violation) {
+  if (!violation) return null;
+  const ts = formatToTimezoneLessISO(violation.occurredAt);
+  return {
+    _id: violation.violationId,
+    id: violation.violationId,
+    timestamp: ts,
+    location: violation.camera ? violation.camera.location : 'Unknown',
+    camera_id: violation.cameraId != null ? String(violation.cameraId) : '',
+    violation_type: mapToLegacyType(violation.violationsType),
+    image_url: violation.imagePath,
+    confidence: violation.confidenceScore,
+    plate_number: violation.licensePlate || 'N/A',
+    status: 'pending',
+
+    violationId: violation.violationId,
+    cameraId: violation.cameraId,
+    licensePlate: violation.licensePlate,
+    violationsType: violation.violationsType,
+    imagePath: violation.imagePath,
+    confidenceScore: violation.confidenceScore,
+    occurredAt: violation.occurredAt,
+    camera: violation.camera
+  };
+}
+
+function mapToLegacyType(type) {
+  if (!type) return 'no_helmet';
+  const val = String(type).toLowerCase().replace('-', '_');
+  if (val === 'non_helmet' || val === 'no_helmet') {
+    return 'no_helmet';
+  }
+  if (val === 'unauthorized_entry' || val === 'unauthorized') {
+    return 'unauthorized_entry';
+  }
+  if (val === 'speeding') {
+    return 'speeding';
+  }
+  return 'other';
+}
+
+
+/**
  * List records with pagination and filters.
  * @param {Object} query - { page, limit, location, violation_type, from, to, license_plate, sort }
  */
@@ -69,7 +127,7 @@ async function list(query) {
   });
 
   return {
-    records: records,
+    records: records.map(mapViolationToLegacy),
     pagination: {
       page: page,
       limit: limit,
@@ -240,7 +298,7 @@ async function findById(id) {
     notFoundError.status = 404;
     throw notFoundError;
   }
-  return record;
+  return mapViolationToLegacy(record);
 }
 
 /**
@@ -272,7 +330,11 @@ async function create(body) {
     confidenceScore: body.confidence != null ? Number(body.confidence) : (body.confidence_score != null ? Number(body.confidence_score) : 0),
   };
 
-  return prisma.violation.create({ data: data });
+  const record = await prisma.violation.create({
+    data: data,
+    include: { camera: true }
+  });
+  return mapViolationToLegacy(record);
 }
 
 /**
@@ -312,7 +374,7 @@ async function update(id, body) {
       data: updates,
       include: { camera: true }
     });
-    return record;
+    return mapViolationToLegacy(record);
   } catch (e) {
     if (e.code === 'P2025') {
       var notFoundError = new Error('Record not found');

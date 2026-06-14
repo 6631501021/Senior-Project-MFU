@@ -87,8 +87,17 @@ export default {
     }
   },
   methods: {
-    onLogout() {
-      this.$store.dispatch('auth/signOut')
+    async onLogout() {
+      const confirmed = await this.$store.dispatch('dialog/openConfirm', {
+        title: this.$t('auth.logoutConfirm.title'),
+        message: this.$t('auth.logoutConfirm.message'),
+        confirmText: this.$t('auth.logoutConfirm.confirmText'),
+        cancelText: this.$t('auth.logoutConfirm.cancelText'),
+        confirmIcon: 'cil-account-logout'
+      })
+      if (confirmed) {
+        this.$store.dispatch('auth/signOut')
+      }
     },
     normalizePermissionPath(path) {
       if (!path) return ''

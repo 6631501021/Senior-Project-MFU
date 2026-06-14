@@ -56,6 +56,12 @@ const th = {
         }
     },
     auth: {
+        logoutConfirm: {
+            title: "ยืนยันการออกจากระบบ",
+            message: "คุณแน่ใจหรือไม่ว่าต้องการออกจากระบบ?",
+            confirmText: "ออกจากระบบ",
+            cancelText: "ยกเลิก"
+        },
         errors: {
             title: "เกิดข้อผิดพลาดในการยืนยันตัวตน"
         },
