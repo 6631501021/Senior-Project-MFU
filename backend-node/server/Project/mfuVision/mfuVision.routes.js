@@ -72,7 +72,19 @@ router.get('/cameras/:id/stream', async function (request, response) {
 
     // Construct RTSP URL dynamically if IP and path are provided
     if (ipAddress && streamPath.startsWith('/')) {
-      const rtspUrl = `rtsp://mfustream:Mediamfu2025@${ipAddress}:554${streamPath}`;
+      // Determine password dynamically based on IP address range
+      let password = 'Mediamfu2025'; // default for 172.30.x.x
+      if (ipAddress.startsWith('172.28.')) {
+        password = 'mediamfu2025'; // fallback for 172.28.x.x
+      }
+
+      // Avoid port duplication
+      let hostWithPort = ipAddress;
+      if (!hostWithPort.includes(':')) {
+        hostWithPort = `${hostWithPort}:554`;
+      }
+
+      const rtspUrl = `rtsp://mfustream:${password}@${hostWithPort}${streamPath}`;
       console.log(`[Dynamic Stream] Spawning RTSP stream for Camera ${camId} (${camera.location}) -> ${rtspUrl}`);
       const mfuStream = require('./service/mfuVision_stream');
       const handler = mfuStream.createDynamicRtspHandler(rtspUrl);
@@ -263,6 +275,29 @@ router.delete('/cameras/:id', async function (request, response) {
       });
     }
     return ok(response, await mfuVisionCamera.remove(camId));
+  } catch (error) {
+    return fail(response, error);
+  }
+});
+
+// Update a camera (Admin only)
+router.put('/cameras/:id', async function (request, response) {
+  try {
+    const isAdmin = await checkAdmin(request);
+    if (!isAdmin) {
+      return response.status(403).json({
+        code: 40300,
+        message: 'Forbidden: Regular users cannot update cameras'
+      });
+    }
+    var camId = parseInt(request.params.id, 10);
+    if (isNaN(camId)) {
+      return response.status(400).json({
+        code: 40000,
+        message: 'Invalid camera ID: must be an integer'
+      });
+    }
+    return ok(response, await mfuVisionCamera.update(camId, request.body || {}));
   } catch (error) {
     return fail(response, error);
   }

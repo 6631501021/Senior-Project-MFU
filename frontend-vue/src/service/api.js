@@ -710,6 +710,8 @@ export default {
         return instance.post('/api/v1/mfu/cameras', data || {});
       case 'delete-camera':
         return instance.delete(`/api/v1/mfu/cameras/${data && (data.id || data._id || data.cameraId)}`);
+      case 'update-camera':
+        return instance.put(`/api/v1/mfu/cameras/${data && (data.id || data.cameraId)}`, data || {});
       default:
         break;
     }

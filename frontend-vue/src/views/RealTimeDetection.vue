@@ -13,7 +13,7 @@
     </div>
 
     <div class="mfu-streams-column">
-      <div v-for="(mod, index) in filteredModules" :key="mod.id" class="mfu-module-card">
+      <div v-for="(mod, index) in paginatedModules" :key="mod.id" class="mfu-module-card">
         <div class="mfu-module-card-header">
           <div class="d-flex align-items-center text-truncate">
             <span class="mfu-module-emoji">{{ mod.emoji }}</span>
@@ -23,8 +23,14 @@
         </div>
         <div class="mfu-module-preview">
           <div class="mfu-module-preview-meta">
-            <span class="mfu-live-dot" :class="{ 'live-dot--connecting': mod.isLoading }"></span>
-            <span class="mfu-live-text">{{ mod.isLoading ? 'CONNECTING' : 'LIVE' }}</span>
+            <span 
+              class="mfu-live-dot" 
+              :class="{ 
+                'live-dot--connecting': mod.isStreaming && mod.isLoading, 
+                'live-dot--offline': !mod.isStreaming 
+              }"
+            ></span>
+            <span class="mfu-live-text">{{ mod.isStreaming ? (mod.isLoading ? 'CONNECTING' : 'LIVE') : 'STANDBY' }}</span>
             <span class="mfu-cam-id text-truncate">// {{ mod.cameraId }}</span>
           </div>
           <div class="mfu-module-preview-stats">
@@ -35,22 +41,36 @@
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7"/></svg>
             </button>
 
+            <button v-if="isAdmin" class="mfu-edit-btn" @click="editModule(mod)" title="Edit camera">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.121 2.121 0 113 3L12 15l-4 1 1-4 9.5-9.5z"/></svg>
+            </button>
+
             <button v-if="isAdmin" class="mfu-delete-btn" @click="removeModule(mod.id)" title="Remove module">
               <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
             </button>
           </div>
           <div class="mfu-module-screen">
-            <img 
-              v-if="mod.streamSrc" 
-              :src="mod.streamSrc" 
-              :alt="mod.name" 
-              class="mfu-stream-img"
-              :key="mod.id + '-' + mod.streamRefreshTrigger"
-              @load="onStreamLoad(mod)"
-              @error="onStreamError(mod)"
-              style="background: #000; width: 100%; height: 100%; object-fit: cover;"
-            />
-            <div v-else class="mfu-module-screen-text">CAMERA SIGNAL ACTIVE</div>
+            <template v-if="mod.isStreaming">
+              <img 
+                :src="mod.streamSrc" 
+                :alt="mod.name" 
+                class="mfu-stream-img"
+                :key="mod.id + '-' + mod.streamRefreshTrigger"
+                @load="onStreamLoad(mod)"
+                @error="onStreamError(mod)"
+                style="background: #000; width: 100%; height: 100%; object-fit: cover;"
+              />
+              <button class="mfu-stop-overlay-btn" @click.stop="toggleStream(mod)" title="Stop stream">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" class="me-1"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/></svg>
+                หยุดสตรีม
+              </button>
+            </template>
+            <div v-else class="mfu-play-overlay" @click="toggleStream(mod)">
+              <div class="mfu-play-button">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+              </div>
+              <span class="mfu-play-text">คลิกเพื่อดูสตรีมสด</span>
+            </div>
           </div>
         </div>
       </div>
@@ -58,6 +78,13 @@
 
     <div v-if="filteredModules.length === 0" class="mfu-empty-state">
       <p>No modules match your search.</p>
+    </div>
+
+    <!-- Load More Button -->
+    <div v-if="filteredModules.length > visibleLimit" class="d-flex justify-content-center mt-4 mb-5">
+      <button class="mfu-load-more-btn" @click="loadMore">
+        แสดงเพิ่มเติม (+12 กล้อง)
+      </button>
     </div>
 
     <button v-if="isAdmin" class="mfu-fab" @click="addModule" title="Add camera module">
@@ -85,7 +112,7 @@
       </div>
     </div>
 
-    <!-- Add Camera Modal -->
+    <!-- Add Camera Modal (Simplified) -->
     <div v-if="showAddCameraModal" class="mfu-modal-overlay" @click.self="closeAddCameraModal">
       <div class="mfu-modal-container mfu-add-camera-container">
         <div class="mfu-modal-header">
@@ -104,26 +131,17 @@
               <input 
                 type="text" 
                 v-model="newCamera.location" 
-                placeholder="เช่น ทางเข้าป้อมยาม MS (หันออก)" 
+                placeholder="เช่น Guardhouse-ANPR-01" 
                 class="form-control mfu-input" 
                 required 
               />
             </div>
-            <div class="form-group mb-3">
-              <label class="form-label text-light small mb-1">IP Address ของกล้อง (IP Address)</label>
-              <input 
-                type="text" 
-                v-model="newCamera.ipAddress" 
-                placeholder="เช่น 172.30.36.21" 
-                class="form-control mfu-input"
-              />
-            </div>
             <div class="form-group mb-4">
-              <label class="form-label text-light small mb-1">พาธของสตรีมวิดีโอ (Stream Path / URL)*</label>
+              <label class="form-label text-light small mb-1">URL ของกล้อง (Camera URL)*</label>
               <input 
                 type="text" 
                 v-model="newCamera.streamPath" 
-                placeholder="เช่น /Streaming/Channels/102/ หรือ /video_gate_ms_out" 
+                placeholder="เช่น rtsp://mfustream:mediamfu2025@172.28.107.28:554/cam/realmonitor?channel=1&subtype=0" 
                 class="form-control mfu-input" 
                 required 
               />
@@ -131,6 +149,49 @@
             <div class="d-flex justify-content-end gap-2">
               <button type="button" class="btn btn-secondary mfu-cancel-btn" @click="closeAddCameraModal">ยกเลิก</button>
               <button type="submit" class="btn btn-primary mfu-submit-btn">บันทึกกล้อง</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Edit Camera Modal -->
+    <div v-if="showEditCameraModal" class="mfu-modal-overlay" @click.self="closeEditCameraModal">
+      <div class="mfu-modal-container mfu-add-camera-container">
+        <div class="mfu-modal-header">
+          <div class="d-flex align-items-center">
+            <span class="mfu-modal-title-emoji">✏️</span>
+            <span class="mfu-modal-title-text">แก้ไขกล้องวงจรปิด</span>
+          </div>
+          <button class="mfu-modal-close-btn" @click="closeEditCameraModal">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
+        </div>
+        <div class="mfu-modal-body p-4 bg-slate-900 text-white">
+          <form @submit.prevent="submitEditCamera" class="w-100 mfu-form">
+            <div class="form-group mb-3">
+              <label class="form-label text-light small mb-1">ชื่อกล้อง / สถานที่ติดตั้ง (Location)*</label>
+              <input 
+                type="text" 
+                v-model="editCameraData.location" 
+                placeholder="เช่น Guardhouse-ANPR-01" 
+                class="form-control mfu-input" 
+                required 
+              />
+            </div>
+            <div class="form-group mb-4">
+              <label class="form-label text-light small mb-1">URL ของกล้อง (Camera URL)*</label>
+              <input 
+                type="text" 
+                v-model="editCameraData.streamPath" 
+                placeholder="เช่น rtsp://mfustream:mediamfu2025@172.28.107.28:554/cam/realmonitor?channel=1&subtype=0" 
+                class="form-control mfu-input" 
+                required 
+              />
+            </div>
+            <div class="d-flex justify-content-end gap-2">
+              <button type="button" class="btn btn-secondary mfu-cancel-btn" @click="closeEditCameraModal">ยกเลิก</button>
+              <button type="submit" class="btn btn-primary mfu-submit-btn">บันทึกการแก้ไข</button>
             </div>
           </form>
         </div>
@@ -155,11 +216,22 @@ export default {
       modules: [],
       streamReconnectIntervals: {},
       showAddCameraModal: false,
+      showEditCameraModal: false,
+      visibleLimit: 12,
       newCamera: {
         location: '',
-        ipAddress: '',
+        streamPath: ''
+      },
+      editCameraData: {
+        id: null,
+        location: '',
         streamPath: ''
       }
+    }
+  },
+  watch: {
+    searchQuery() {
+      this.visibleLimit = 12
     }
   },
   computed: {
@@ -175,6 +247,9 @@ export default {
         m.cameraId.toLowerCase().includes(q) ||
         m.name.toLowerCase().includes(q)
       )
+    },
+    paginatedModules() {
+      return this.filteredModules.slice(0, this.visibleLimit)
     }
   },
   mounted() {
@@ -208,7 +283,10 @@ export default {
               latency: '200',
               streamSrc: finalStreamUrl,
               isLoading: true,
-              streamRefreshTrigger: 0
+              isStreaming: false,
+              streamRefreshTrigger: 0,
+              ipAddress: c.ipAddress,
+              streamPath: c.streamPath
             }
           });
         }
@@ -225,6 +303,7 @@ export default {
             latency: '200',
             streamSrc: this.buildStreamUrl(this.backendBaseUrl, '/video_gate_ms_out'),
             isLoading: true,
+            isStreaming: false,
             streamRefreshTrigger: 0
           },
           {
@@ -237,6 +316,7 @@ export default {
             latency: '200',
             streamSrc: this.buildStreamUrl(this.backendBaseUrl, '/video_gate_ms_in'),
             isLoading: true,
+            isStreaming: false,
             streamRefreshTrigger: 0
           }
         ]
@@ -257,6 +337,7 @@ export default {
       return (baseUrl || '') + path
     },
     onStreamLoad(module) {
+      if (!module.isStreaming) return
       console.log(`[RealTimeDetection] Stream loaded successfully: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = false
       if (this.streamReconnectIntervals[module.id]) {
@@ -265,14 +346,35 @@ export default {
       }
     },
     onStreamError(module) {
+      if (!module.isStreaming) return
       console.warn(`[RealTimeDetection] Stream failed to load: ${module.cameraId} @ ${module.streamSrc}`)
       module.isLoading = true
       if (!this.streamReconnectIntervals[module.id]) {
         this.streamReconnectIntervals[module.id] = setInterval(() => {
+          if (!module.isStreaming) {
+            if (this.streamReconnectIntervals[module.id]) {
+              clearInterval(this.streamReconnectIntervals[module.id])
+              delete this.streamReconnectIntervals[module.id]
+            }
+            return
+          }
           console.log(`[RealTimeDetection] Retrying stream ${module.cameraId} (attempt #${module.streamRefreshTrigger + 1})`)
           module.streamRefreshTrigger++
         }, 3000)
       }
+    },
+    toggleStream(module) {
+      module.isStreaming = !module.isStreaming
+      module.isLoading = true
+      if (!module.isStreaming) {
+        if (this.streamReconnectIntervals[module.id]) {
+          clearInterval(this.streamReconnectIntervals[module.id])
+          delete this.streamReconnectIntervals[module.id]
+        }
+      }
+    },
+    loadMore() {
+      this.visibleLimit += 12
     },
     async removeModule(id) {
       const targetModule = this.modules.find(m => m.id === id);
@@ -299,7 +401,6 @@ export default {
       this.showAddCameraModal = true
       this.newCamera = {
         location: '',
-        ipAddress: '',
         streamPath: ''
       }
       document.body.style.overflow = 'hidden'
@@ -310,13 +411,12 @@ export default {
     },
     async submitAddCamera() {
       if (!this.newCamera.location.trim() || !this.newCamera.streamPath.trim()) {
-        alert('ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้องและพาธสตรีม')
+        alert('ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้องและ URL ของกล้อง')
         return
       }
       try {
         await api.mfuVision('create-camera', {
           location: this.newCamera.location.trim(),
-          ip_address: this.newCamera.ipAddress.trim() || null,
           stream_path: this.newCamera.streamPath.trim()
         })
         this.closeAddCameraModal()
@@ -326,12 +426,60 @@ export default {
       }
     },
     openMaximizeModal(module) {
+      module.isStreaming = true
       this.maximizedModule = module;
       document.body.style.overflow = 'hidden';
     },
     closeMaximizeModal() {
       this.maximizedModule = null;
       document.body.style.overflow = '';
+    },
+    editModule(module) {
+      this.showEditCameraModal = true
+      this.editCameraData = {
+        id: module.id,
+        location: module.name,
+        streamPath: this.reconstructCameraUrl(module)
+      }
+      document.body.style.overflow = 'hidden'
+    },
+    closeEditCameraModal() {
+      this.showEditCameraModal = false
+      document.body.style.overflow = ''
+    },
+    async submitEditCamera() {
+      if (!this.editCameraData.location.trim() || !this.editCameraData.streamPath.trim()) {
+        alert('ข้อผิดพลาด: จำเป็นต้องระบุชื่อของกล้องและ URL ของกล้อง')
+        return
+      }
+      try {
+        await api.mfuVision('update-camera', {
+          id: this.editCameraData.id,
+          location: this.editCameraData.location.trim(),
+          stream_path: this.editCameraData.streamPath.trim()
+        })
+        this.closeEditCameraModal()
+        await this.fetchCameras()
+      } catch (err) {
+        alert('Failed to update camera: ' + (err.response?.data?.message || err.message))
+      }
+    },
+    reconstructCameraUrl(c) {
+      if (!c) return ''
+      const ipAddress = c.ipAddress || ''
+      const streamPath = c.streamPath || ''
+      if (ipAddress && streamPath.startsWith('/')) {
+        let password = 'Mediamfu2025'
+        if (ipAddress.startsWith('172.28.')) {
+          password = 'mediamfu2025'
+        }
+        let hostWithPort = ipAddress
+        if (!hostWithPort.includes(':')) {
+          hostWithPort = `${hostWithPort}:554`
+        }
+        return `rtsp://mfustream:${password}@${hostWithPort}${streamPath}`
+      }
+      return streamPath
     }
   },
   beforeDestroy() {
@@ -528,6 +676,25 @@ export default {
 .mfu-expand-btn:hover {
   background: rgba(255, 255, 255, 0.2);
   color: #ffffff;
+}
+
+.mfu-edit-btn {
+  width: 24px;
+  height: 24px;
+  border: none;
+  background: rgba(255, 255, 255, 0.08);
+  color: #94a3b8;
+  border-radius: 0.3rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mfu-edit-btn:hover {
+  background: rgba(59, 130, 246, 0.2);
+  color: #3b82f6;
 }
 
 .mfu-delete-btn {
@@ -744,5 +911,104 @@ export default {
 
 .mfu-submit-btn:hover {
   background: #991b1b;
+}
+
+.mfu-play-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(15, 23, 42, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: background 0.3s ease;
+  z-index: 5;
+}
+
+.mfu-play-overlay:hover {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.mfu-play-button {
+  width: 50px;
+  height: 50px;
+  background: #991b1b;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #ffffff;
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.5);
+  margin-bottom: 0.75rem;
+  transition: transform 0.2s ease, background-color 0.2s ease;
+}
+
+.mfu-play-overlay:hover .mfu-play-button {
+  transform: scale(1.1);
+  background: #7f1d1d;
+}
+
+.mfu-play-text {
+  color: #f8fafc;
+  font-size: 0.85rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+}
+
+.mfu-stop-overlay-btn {
+  position: absolute;
+  bottom: 0.75rem;
+  left: 50%;
+  transform: translateX(-50%);
+  background: rgba(15, 23, 42, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 0.35rem 0.75rem;
+  border-radius: 20px;
+  cursor: pointer;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+  backdrop-filter: blur(4px);
+  transition: all 0.2s ease;
+}
+
+.mfu-stop-overlay-btn:hover {
+  background: #991b1b;
+  border-color: #991b1b;
+  transform: translateX(-50%) scale(1.05);
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.4);
+}
+
+.mfu-live-dot.live-dot--offline {
+  background: #64748b;
+  animation: none;
+}
+
+.mfu-load-more-btn {
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  color: #0f172a;
+  padding: 0.75rem 2rem;
+  border-radius: 0.5rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+}
+
+.mfu-load-more-btn:hover {
+  background: #f8fafc;
+  border-color: #991b1b;
+  color: #991b1b;
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(153, 27, 27, 0.05);
 }
 </style>

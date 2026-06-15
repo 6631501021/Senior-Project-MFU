@@ -12,6 +12,24 @@ async function list() {
 }
 
 /**
+ * Helper to parse camera URL into ipAddress and streamPath.
+ */
+function parseCameraUrl(urlInput) {
+  let streamPath = String(urlInput || '').trim();
+  let ipAddress = null;
+
+  if (streamPath.match(/^(?:rtsp:\/\/|rtsp\/|http:\/\/|https:\/\/)/i)) {
+    const match = streamPath.match(/^(?:rtsp:\/\/|rtsp\/|http:\/\/|https:\/\/)?(?:[^@\/\n]+@)?([^:\/\n]+(?::\d+)?)(.*)$/i);
+    if (match) {
+      ipAddress = match[1];
+      streamPath = match[2] || '/';
+    }
+  }
+
+  return { ipAddress, streamPath };
+}
+
+/**
  * Create a new camera.
  * Accepts:
  *   - location (string)
@@ -26,10 +44,12 @@ async function create(body) {
     throw error;
   }
 
+  const parsed = parseCameraUrl(body.stream_path);
+
   var data = {
     location: String(body.location).trim(),
-    streamPath: String(body.stream_path).trim(),
-    ipAddress: body.ip_address ? String(body.ip_address).trim() : null,
+    streamPath: parsed.streamPath,
+    ipAddress: parsed.ipAddress || (body.ip_address ? String(body.ip_address).trim() : null),
     status: body.status ? String(body.status).trim() : 'active',
     installedAt: new Date()
   };
@@ -90,9 +110,61 @@ async function findById(id) {
   });
 }
 
+/**
+ * Update a camera.
+ * Accepts:
+ *   - location (string, optional)
+ *   - stream_path (string, optional)
+ *   - status (string, optional)
+ */
+async function update(id, body) {
+  var cameraId = parseInt(id, 10);
+  if (isNaN(cameraId)) {
+    var error = new Error('Invalid camera ID');
+    error.status = 400;
+    throw error;
+  }
+
+  const data = {};
+  if (body.location !== undefined) {
+    data.location = String(body.location).trim();
+  }
+
+  if (body.stream_path !== undefined) {
+    const parsed = parseCameraUrl(body.stream_path);
+    data.streamPath = parsed.streamPath;
+    if (parsed.ipAddress) {
+      data.ipAddress = parsed.ipAddress;
+    } else if (body.ip_address !== undefined) {
+      data.ipAddress = body.ip_address ? String(body.ip_address).trim() : null;
+    }
+  } else if (body.ip_address !== undefined) {
+    data.ipAddress = body.ip_address ? String(body.ip_address).trim() : null;
+  }
+
+  if (body.status !== undefined) {
+    data.status = String(body.status).trim();
+  }
+
+  try {
+    return await prisma.camera.update({
+      where: { cameraId: cameraId },
+      data: data
+    });
+  } catch (e) {
+    if (e.code === 'P2025') {
+      var notFoundError = new Error('Camera not found');
+      notFoundError.status = 404;
+      throw notFoundError;
+    }
+    throw e;
+  }
+}
+
 module.exports = {
   list: list,
   create: create,
+  update: update,
   remove: remove,
   findById: findById
 };
