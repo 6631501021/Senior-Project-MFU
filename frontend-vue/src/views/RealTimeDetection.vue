@@ -13,7 +13,13 @@
     </div>
 
     <div class="mfu-streams-column">
-      <div v-for="(mod, index) in paginatedModules" :key="mod.id" class="mfu-module-card">
+      <div
+        v-for="(mod, index) in paginatedModules"
+        :key="mod.id"
+        class="mfu-module-card"
+        @dblclick="handleCameraDoubleClick(mod)"
+        title="Double click to maximize stream"
+      >
         <div class="mfu-module-card-header">
           <div class="d-flex align-items-center text-truncate">
             <span class="mfu-module-emoji">{{ mod.emoji }}</span>
@@ -429,6 +435,9 @@ export default {
       module.isStreaming = true
       this.maximizedModule = module;
       document.body.style.overflow = 'hidden';
+    },
+    handleCameraDoubleClick(module) {
+      this.openMaximizeModal(module)
     },
     closeMaximizeModal() {
       this.maximizedModule = null;

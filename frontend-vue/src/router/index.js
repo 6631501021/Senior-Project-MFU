@@ -61,7 +61,7 @@ const router = new Router({
         },
         {
           path: 'mfu/records',
-          name: 'Records',
+          name: 'History',
           component: Records
         },
         {

@@ -1,12 +1,12 @@
 <template>
   <div class="mfu-page">
     <!-- Breadcrumb -->
-    <div class="mfu-breadcrumb">{{ isAdmin ? 'RECORDS' : 'YOUR VIOLATION' }}</div>
+    <div class="mfu-breadcrumb">{{ isAdmin ? 'HISTORY' : 'YOUR HISTORY' }}</div>
 
     <!-- Page Header -->
     <div class="mfu-page-header mb-4">
-      <h1 class="mfu-page-title">{{ isAdmin ? 'Detection Records' : 'YOUR VIOLATION' }}</h1>
-      <p class="mfu-page-subtitle">{{ isAdmin ? 'Review historical security data and archived violation detections across the campus ecosystem.' : 'View and track your motorcycle helmet detection violations on campus.' }}</p>
+      <h1 class="mfu-page-title">{{ isAdmin ? 'Detection History' : 'YOUR HISTORY' }}</h1>
+      <p class="mfu-page-subtitle">{{ isAdmin ? 'Review historical security data and archived violation detections across the campus ecosystem.' : 'View and track your motorcycle helmet detection history on campus.' }}</p>
     </div>
 
     <!-- Filter Card -->
@@ -34,29 +34,6 @@
               <option value="medical">Medical Center Gate</option>
             </select>
           </div>
-          <div class="mfu-filter-group mfu-filter-group--row-count">
-            <label class="mfu-filter-label">ROWS</label>
-            <div class="mfu-row-count-buttons">
-              <button
-                type="button"
-                class="mfu-btn mfu-btn--outline"
-                :class="{ active: perPage === 5 }"
-                @click="setRowCount(5)"
-              >5</button>
-              <button
-                type="button"
-                class="mfu-btn mfu-btn--outline"
-                :class="{ active: perPage === 10 }"
-                @click="setRowCount(10)"
-              >10</button>
-              <button
-                type="button"
-                class="mfu-btn mfu-btn--outline"
-                :class="{ active: perPage === 20 }"
-                @click="setRowCount(20)"
-              >20</button>
-            </div>
-          </div>
           <div class="mfu-filter-actions">
             <button class="mfu-btn mfu-btn--primary" @click="applyFilter">
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
@@ -71,7 +48,7 @@
     <!-- Stat Badges -->
     <div class="mfu-stat-badges mb-4">
       <div class="mfu-stat-badge-item">
-        <span class="mfu-stat-badge-label">TOTAL RECORDS</span>
+        <span class="mfu-stat-badge-label">TOTAL HISTORY</span>
         <span class="mfu-stat-badge-value">{{ totalRecords.toLocaleString() }}</span>
       </div>
       <div class="mfu-stat-badge-item">
@@ -104,7 +81,7 @@
                 <img :src="row.image_url || 'https://placehold.co/120x72/334155/94a3b8?text=CAM'" :alt="'Record ' + (idx + 1)" class="mfu-preview-img" />
               </td>
               <td>
-                <router-link :to="'/mfu/records/' + row._id" class="mfu-view-link">VIEW DETAILS</router-link>
+                <router-link :to="'/mfu/records/' + row._id" class="mfu-view-link">VIEW DETAIL</router-link>
               </td>
             </tr>
           </tbody>
@@ -113,6 +90,14 @@
       <!-- Pagination -->
       <div class="mfu-pagination">
         <span class="mfu-pagination-info">SHOWING {{ paginationStart }}-{{ paginationEnd }} OF {{ totalRecords.toLocaleString() }} DETECTIONS</span>
+        <div class="mfu-filter-group mfu-row-count-bottom">
+          <label class="mfu-filter-label">ROWS</label>
+          <select class="mfu-filter-select" :value="perPage" @change="setRowCount(Number($event.target.value))">
+            <option :value="5">5</option>
+            <option :value="10">10</option>
+            <option :value="20">20</option>
+          </select>
+        </div>
         <div class="mfu-pagination-buttons">
           <button class="mfu-page-btn" :disabled="currentPage === 1" @click="currentPage--">&lt;</button>
           <button
@@ -157,7 +142,7 @@ const mockRecords = [
 ]
 
 export default {
-  name: 'Records',
+  name: 'History',
   mixins: [securityAccess],
   data() {
     return {
@@ -357,21 +342,17 @@ export default {
   transition: border-color 0.2s ease;
 }
 
-.mfu-filter-group--row-count .mfu-row-count-buttons {
-  display: flex;
-  gap: 0.5rem;
+.mfu-row-count-bottom {
+  flex: 0 0 auto;
+  min-width: auto;
 }
 
-.mfu-row-count-buttons .mfu-btn {
-  min-width: 3rem;
-  padding: 0.5rem 0.75rem;
+.mfu-row-count-bottom .mfu-filter-label {
+  margin-bottom: 0.35rem;
 }
 
-.mfu-row-count-buttons .mfu-btn.active,
-.mfu-row-count-buttons .mfu-btn.active:hover {
-  background-color: #0f172a;
-  color: #ffffff;
-  border-color: #0f172a;
+.mfu-row-count-bottom .mfu-filter-select {
+  min-width: 5rem;
 }
 
 .mfu-btn {

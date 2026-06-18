@@ -18,7 +18,7 @@ export default function buildNav (t) {
         },
         {
           _name: 'CSidebarNavItem',
-          name: 'Records',
+          name: 'History',
           to: '/mfu/records',
           icon: 'cil-clock'
         },
